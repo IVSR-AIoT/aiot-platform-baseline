@@ -1,0 +1,17 @@
+{
+    "message_id": "sensor-0000-00000000",
+    "timestamp": "2023-12-25T07:38:42.491",
+    "location": {
+        "id": "0000",
+        "lat": 21.005453,
+        "lon": 105.8451935,
+        "alt": 48.15574793,
+        "description": "ROOM E-722"
+    },
+    "specs": {
+        "description": "Human temperature",
+        "min_value": 30.00,
+        "max_value": 45.00
+    },
+    "payload": 37.5
+}
