@@ -1,5 +1,5 @@
 {
-    "message_id": "0000-0001-0002-000000",
+    "message_id": "not-0000-00000000",
     "timestamp": "2023-12-25T07:38:42.491",
     "location": {
         "id": "0000",
@@ -17,7 +17,7 @@
         },
         {
             "type": "sensor",
-            "message_id": "sensor-0000-000000000"
+            "message_id": "sen-0000-000000000"
         }
     ]
 }
