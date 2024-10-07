@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>WebRTC Stream Playback</title>
+    <!-- Include OvenPlayer Library -->
+    <script src="ovenplayer.js"></script>
+    <style>
+        /* Basic styling to center the player */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #player {
+            width: 640px;
+            height: 360px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Player Container -->
+    <div id="player"></div>
+    <!-- Initialize OvenPlayer -->
+    <script>
+        var player = OvenPlayer.create("player", {
+            sources: [{
+                type: "webrtc",
+                file: "wss://192.168.0.112:3333/rtsp-to-webrtc/ip-cam"
+            }],
+            autoStart: true,
+            controls: true
+        });
+    </script>
+</body>
+
+</html>
