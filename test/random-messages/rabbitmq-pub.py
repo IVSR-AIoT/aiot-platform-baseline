@@ -317,7 +317,7 @@ if __name__ == '__main__':
         print(f"[INFO] Successfully created 3 channels for 3 queues\n",
               file=sys.stdout)
 
-    for id in range(0, 10):
+    for id in range(0, 100):
         obj_channel.basic_publish(
             exchange='',
             routing_key=OBJECT_MSG_QUEUE_NAME,
@@ -333,5 +333,5 @@ if __name__ == '__main__':
             body=generateMessage(MessageType.NOTIFICATION, id=id)
         )
 
-        random_sleep_duration = round(random.uniform(0, 1), 2)
+        random_sleep_duration = round(random.uniform(0, 0.1), 2)
         time.sleep(float(random_sleep_duration))
