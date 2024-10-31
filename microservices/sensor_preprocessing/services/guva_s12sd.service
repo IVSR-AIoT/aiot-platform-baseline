@@ -1,0 +1,17 @@
+[Unit]
+Description=GUVA-S12SD Sensor Data Publisher Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/home/orangepi/pino_ws/sensor_preprocessing/build/guva_publisher
+Restart=always
+RestartSec=5s
+User=root
+Group=root
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
