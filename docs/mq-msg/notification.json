@@ -1,23 +1,26 @@
 {
-    "message_id": "not-0000-00000000",
-    "timestamp": "2023-12-25T07:38:42.491",
-    "location": {
-        "id": "0000",
-        "lat": 21.005453,
-        "lon": 105.8451935,
-        "alt": 48.15574793,
-        "description": "ROOM E-722"
-    },
-    "CAT": "CAT0",
-    "payload": "[ALERT] example",
-    "external_messages": [
-        {
-            "type": "object",
-            "message_id": "obj-0000-00000000"
+    "message_type": "notification",
+    "payload": {
+        "message_id": "not-0000-00000000",
+        "timestamp": "2023-12-25T07:38:42.491",
+        "location": {
+            "id": "0000",
+            "lat": 21.005453,
+            "lon": 105.8451935,
+            "alt": 48.15574793,
+            "description": "ROOM E-722"
         },
-        {
-            "type": "sensor",
-            "message_id": "sen-0000-000000000"
-        }
-    ]
+        "CAT": "CAT0",
+        "payload": "[ALERT] example",
+        "external_messages": [
+            {
+                "type": "object",
+                "message_id": "obj-0000-00000000"
+            },
+            {
+                "type": "sensor",
+                "message_id": "sen-0000-000000000"
+            }
+        ]
+    }
 }
