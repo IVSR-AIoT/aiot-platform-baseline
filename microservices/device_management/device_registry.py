@@ -4,6 +4,7 @@ import time
 import uuid
 import sys
 import os
+import redis
 from dotenv import load_dotenv, set_key
 
 # Template for the device registry message
@@ -20,6 +21,10 @@ DOTENV_FILE_PATH = ".env"
 DOTENV_KEY_DEVICE_ID = 'DEVICE_ID'
 DOTENV_KEY_HEARTBEAT_DURATION = 'HEARTBEAT_DURATION'
 
+REDIS_KEY_DEVICE_ID = DOTENV_KEY_DEVICE_ID
+REDIS_KEY_HEARTBEAT_DURATION = DOTENV_KEY_HEARTBEAT_DURATION
+REDIS_KEY_MAC_ADDRESS = 'MAC_ADDRESS'
+
 # Load environment variables from the specified .env file
 load_dotenv(dotenv_path=DOTENV_FILE_PATH)
 
@@ -32,6 +37,11 @@ device_registry_queue = os.getenv('DEVICE_REGISTRY_QUEUE')
 accepted_devices_queue = os.getenv('ACCEPTED_DEVICES_QUEUE')
 # Timeout duration for retries
 retry_timeout = int(os.getenv('RETRY_TIMEOUT'))
+
+# Redis configurations
+redis_host = os.getenv('REDIS_HOST')
+redis_port = int(os.getenv('REDIS_PORT'))
+redis_db = int(os.getenv('REDIS_DB'))
 
 
 def updateENV(key: str, value: str) -> None:
@@ -136,7 +146,7 @@ def callback(ch, method, properties, body):
     """
     global MAC_address, device_heartbeat_duration, device_id
     global stop_condition_met
-    global DOTENV_FILE_PATH, DOTENV_KEY_DEVICE_ID, DOTENV_KEY_HEARTBEAT_DURATION
+    global redis_host, redis_port, redis_db
 
     # Decode the message body
     decoded_message = body.decode('utf-8').replace("\n", "")
@@ -195,10 +205,21 @@ def callback(ch, method, properties, body):
         print("Message with matching MAC address received, stopping consumer...")
         stop_condition_met = True  # Set the flag to stop consuming messages
 
+        device_id = getDeviceID(decoded_message)
+        device_heartbeat_duration = getHeartbeatDuration(decoded_message)
+
         # Update the .env file with the received device ID and heartbeat duration
-        updateENV(key=DOTENV_KEY_DEVICE_ID, value=getDeviceID(decoded_message))
-        updateENV(key=DOTENV_KEY_HEARTBEAT_DURATION, value=str(
-            getHeartbeatDuration(decoded_message)))
+        updateENV(key=DOTENV_KEY_DEVICE_ID, value=device_id)
+        updateENV(key=DOTENV_KEY_HEARTBEAT_DURATION,
+                  value=str(device_heartbeat_duration))
+
+        # Set the mac, id, heartbeat duration in redis DB
+        redis_client = redis.Redis(
+            host=redis_host, port=redis_port, db=redis_db)
+        redis_client.set(name=REDIS_KEY_MAC_ADDRESS, value=MAC_address)
+        redis_client.set(name=REDIS_KEY_DEVICE_ID, value=device_id)
+        redis_client.set(name=REDIS_KEY_HEARTBEAT_DURATION,
+                         value=device_heartbeat_duration)
 
         # Acknowledge the message and stop consuming
         ch.basic_ack(delivery_tag=method.delivery_tag)
