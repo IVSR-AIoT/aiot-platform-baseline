@@ -115,20 +115,22 @@ private:
 class ADS1118
 {
 public:
-    explicit ADS1118(SPI &spi, float vRef = 4.096f, float conversionFactor = 0.1f)
+    explicit ADS1118(SPI &spi, float vRef = 1.024f, float conversionFactor = 0.1f)
         : spi(spi), vRef(vRef), conversionFactor(conversionFactor) {}
 
     /**
      * Reads the analog-to-digital converter (ADC) value from the ADS1118.
      *
-     * @return The ADC value read from the ADS1118.
+     * @return The ADC value read from the ADS1118.S
      */
     int16_t readADC()
     {
-        uint8_t tx[2] = {0x85, 0x83}; // Configuration command to ADS1118
+        uint8_t tx[2] = {0xC5, 0x83}; // Configuration command to ADS1118
         uint8_t rx[2] = {0, 0};
 
         spi.transfer(tx, rx, 2);
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
         int16_t result = (static_cast<int16_t>(rx[0]) << 8) | rx[1];
         return result;
@@ -336,11 +338,17 @@ private:
 Json::Value GuvaPublisher::createPayload()
 {
     Json::Value payload_json;
+    // Populate the payload data
     payload_json["raw_value"] = this->raw_value;
     payload_json["voltage"] = this->voltage;
     payload_json["uv_intensity"] = this->uv_intensity;
 
-    return payload_json;
+    // Create the full message with type and payload
+    Json::Value message_json;
+    message_json["type"] = "uv";            // Set the type, e.g., "uv" for UV sensor
+    message_json["payload"] = payload_json; // Add the payload
+
+    return message_json;
 }
 
 /******************************************************/

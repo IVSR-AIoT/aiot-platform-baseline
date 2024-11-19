@@ -3,3 +3,6 @@ test_suite_analysis/
 **/__pycache__
 **/temp/
 **/build/
+**/jsoncpp/
+**/paho.mqtt.c/
+**/paho.mqtt.cpp/
