@@ -1,0 +1,22 @@
+{
+    "cmake.ignoreCMakeListsMissing": true,
+    "workbench.colorCustomizations": {
+        "activityBar.activeBackground": "#8B4513", // Dark brown
+        "activityBar.background": "#8B4513", // Dark brown
+        "activityBar.foreground": "#FFFFFF", // White
+        "activityBar.inactiveForeground": "#FFFFFF99", // White with opacity
+        "activityBarBadge.background": "#A0522D", // Sienna
+        "activityBarBadge.foreground": "#FFFFFF", // White
+        "commandCenter.border": "#FFFFFF99", // White with opacity
+        "sash.hoverBorder": "#8B4513", // Dark brown
+        "statusBar.background": "#A0522D", // Sienna
+        "statusBar.foreground": "#FFFFFF", // White
+        "statusBarItem.hoverBackground": "#8B4513", // Dark brown
+        "statusBarItem.remoteBackground": "#A0522D", // Sienna
+        "statusBarItem.remoteForeground": "#FFFFFF", // White
+        "titleBar.activeBackground": "#8B4513", // Dark brown
+        "titleBar.activeForeground": "#FFFFFF", // White
+        "titleBar.inactiveBackground": "#8B451399", // Dark brown with opacity
+        "titleBar.inactiveForeground": "#FFFFFF99" // White with opacity
+    }
+}
