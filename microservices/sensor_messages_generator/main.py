@@ -10,6 +10,33 @@ from typing import Dict, Type
 DOTENV_FILE_PATH = '.env'
 MQTT_ALL_TOPICS_WILDCARD = '#'
 
+SENSOR_OBJECT_TEMPLATE_DICT = {
+    "id": str,
+    "name": str,
+    "description": str,
+    "unit": str,
+    "payload": int | float | list
+}
+
+LOCATION_TEMPLATE_DICT = {
+    "id": str,
+    "lat": float,
+    "lon": float,
+    "alt": float,
+    "description": str
+}
+
+SENSOR_DATA_MESSAGE_TEMPLATE_DICT = {
+    "message_type": "sensor",
+    "payload": {
+        "message_id": str,
+        "timestamp": str,
+        "location": LOCATION_TEMPLATE_DICT,
+        "number_of_sensors": int,
+        "sensor_list": list
+    }
+}
+
 load_dotenv(dotenv_path=DOTENV_FILE_PATH)
 
 mqtt_host = os.getenv('MQTT_HOST')
@@ -31,26 +58,28 @@ class SensorData:
     Base class for all sensor data.
     '''
 
-    def __init__(self, data: Dict):
+    def __init__(self, data=Dict):
         self.data = data
 
     def __str__(self):
         return f"SensorData: {self.data}"
 
 
-class PMData(SensorData):
+class PMSensorData(SensorData):
     '''
     Represents particulate matter sensor data.
     '''
 
-    def __init__(self, data: Dict):
+    def __init__(self, data={}, name="name", description="description"):
         super().__init__(data)
         self.pm1 = data.get("pm1", 0)
         self.pm10 = data.get("pm10", 0)
         self.pm25 = data.get("pm25", 0)
+        self.name = name
+        self.description = description
 
     def __str__(self):
-        return f"PMData(pm1={self.pm1}, pm10={self.pm10}, pm25={self.pm25})"
+        return f"PMSensorData (pm1={self.pm1}, pm10={self.pm10}, pm25={self.pm25})"
 
 
 class UVSensorData(SensorData):
@@ -58,11 +87,13 @@ class UVSensorData(SensorData):
     Represents UV sensor data.
     '''
 
-    def __init__(self, data: Dict):
+    def __init__(self, data={}, name="name", description="description"):
         super().__init__(data)
         self.raw_value = data.get("raw_value", 0)
         self.uv_intensity = data.get("uv_intensity", 0.0)
         self.voltage = data.get("voltage", 0.0)
+        self.name = name
+        self.description = description
 
     def __str__(self):
         return f"UVSensorData(raw_value={self.raw_value}, uv_intensity={self.uv_intensity}, voltage={self.voltage})"
@@ -73,11 +104,13 @@ class CO2SensorData(SensorData):
     Represents CO2 sensor data.
     '''
 
-    def __init__(self, data: Dict):
+    def __init__(self, data={}, name="name", description="description"):
         super().__init__(data)
         self.co2 = data.get("co2", 0)
         self.humidity = data.get("humidity", 0.0)
         self.temperature = data.get("temperature", 0.0)
+        self.name = name
+        self.description = description
 
     def __str__(self):
         return f"CO2SensorData(co2={self.co2}, humidity={self.humidity}, temperature={self.temperature})"
@@ -88,7 +121,7 @@ class SensorDataFactory:
     Factory class to create sensor data objects.
     '''
     SENSOR_CLASSES: Dict[str, Type[SensorData]] = {
-        "pm": PMData,
+        "pm": PMSensorData,
         "uv": UVSensorData,
         "co2": CO2SensorData,
     }
@@ -124,6 +157,28 @@ class SensorDataFactory:
         return sensor_class(payload)
 
 ###############################################################################
+
+
+class SensorDataMessage:
+    def __init__(self, num_of_sensors: int) -> None:
+        self._sensors_data_dict = {}
+        self._num_of_sensors = num_of_sensors
+        self._message_template_dict = SENSOR_DATA_MESSAGE_TEMPLATE_DICT
+        self._count = 0
+
+    def appendSensor(self, sensor: SensorData):
+        sensor_class = sensor.__class__.__name__
+        self._sensors_data_dict[sensor_class] = sensor
+
+    def isFull(self) -> bool:
+        return self._num_of_sensors == len(self._sensors_data_dict)
+
+    def createMessage(self, message) -> bool:
+        if not self.isFull():
+            return False
+
+    def createSensorObjectDict(self, sub_name: str, unit: str, value: int | float | list) -> dict:
+        template = SENSOR_OBJECT_TEMPLATE_DICT
 
 
 class MQTTClient:
@@ -187,8 +242,8 @@ class MQTTClient:
 
 ###############################################################################
 
-###############################################################################
 
+###############################################################################
 
 if __name__ == '__main__':
     mqtt_client = MQTTClient(host=mqtt_host, port=mqtt_port)
