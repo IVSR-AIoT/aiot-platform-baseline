@@ -1,7 +1,7 @@
 import paho.mqtt.client as mqtt
 import pika
 import json
-import time
+from datetime import datetime
 import redis
 from dotenv import load_dotenv
 import os
@@ -9,6 +9,7 @@ from typing import Dict, Type
 
 DOTENV_FILE_PATH = '.env'
 MQTT_ALL_TOPICS_WILDCARD = '#'
+SUB_ADD = ': '
 
 SENSOR_OBJECT_TEMPLATE_DICT = {
     "id": str,
@@ -52,6 +53,32 @@ redis_host = os.getenv('REDIS_HOST')
 redis_port = int(os.getenv('REDIS_PORT'))
 redis_db = os.getenv('REDIS_DB')
 
+number_of_sensors = int(os.getenv('NUMBER_OF_SENSORS'))
+
+location_id = ""
+location_description = ""
+message_count = 0
+
+
+def getDataRedis():
+    global redis_host, redis_port, redis_db
+    global location_id, location_description
+    redis_client = redis.Redis(
+        host=redis_host, port=redis_port, db=redis_db)
+
+    try:
+        location_id = str(redis_client.get("LOCATION_ID")).zfill(4)
+    except Exception as e:
+        location_id = str(int(-1))
+
+    try:
+        location_description = str(redis_client.get("LOCATION_DESCRIPTION"))
+    except Exception as e:
+        location_description = "nil"
+
+
+getDataRedis()  # Get LOCATION_ID, LOCATION_DESCRIPTION from redis db
+
 
 class SensorData:
     '''
@@ -60,9 +87,16 @@ class SensorData:
 
     def __init__(self, data=Dict):
         self.data = data
+        self.num_values = 0
 
     def __str__(self):
         return f"SensorData: {self.data}"
+
+    def complete(self):
+        pass
+
+    def getValuesList(self, start_id: int) -> list:
+        pass
 
 
 class PMSensorData(SensorData):
@@ -77,9 +111,40 @@ class PMSensorData(SensorData):
         self.pm25 = data.get("pm25", 0)
         self.name = name
         self.description = description
+        self.num_values = 3
 
     def __str__(self):
         return f"PMSensorData (pm1={self.pm1}, pm10={self.pm10}, pm25={self.pm25})"
+
+    def complete(self):
+        self.name = "PMS5004 sensor"
+        self.description = "PMS5003 sensor: PM 1.0, PM 2.5 and PM 10"
+
+    def getValuesList(self, start_id: int) -> list:
+
+        pm1_dict = SENSOR_OBJECT_TEMPLATE_DICT
+        pm1_dict["id"] = str(start_id).zfill(4)
+        pm1_dict["name"] = str(self.name + SUB_ADD + "pm1")
+        pm1_dict["description"] = str(self.description + SUB_ADD + "pm1")
+        pm1_dict["unit"] = "ug/m3"
+        pm1_dict["payload"] = self.pm1
+
+        pm25_dict = SENSOR_OBJECT_TEMPLATE_DICT
+        pm25_dict["id"] = str(start_id + 1).zfill(4)
+        pm25_dict["name"] = str(self.name + SUB_ADD + "pm2.5")
+        pm25_dict["description"] = str(self.description + SUB_ADD + "pm2.5")
+        pm25_dict["unit"] = "ug/m3"
+        pm25_dict["payload"] = self.pm25
+
+        pm10_dict = SENSOR_OBJECT_TEMPLATE_DICT
+        pm10_dict["id"] = str(start_id + 2).zfill(4)
+        pm10_dict["name"] = str(self.name + SUB_ADD + "pm10")
+        pm10_dict["description"] = str(self.description + SUB_ADD + "pm10")
+        pm10_dict["unit"] = "ug/m3"
+        pm10_dict["payload"] = self.pm10
+
+        result = [pm1_dict, pm25_dict, pm10_dict]
+        return result
 
 
 class UVSensorData(SensorData):
@@ -94,9 +159,43 @@ class UVSensorData(SensorData):
         self.voltage = data.get("voltage", 0.0)
         self.name = name
         self.description = description
+        self.num_values = 3
 
     def __str__(self):
         return f"UVSensorData(raw_value={self.raw_value}, uv_intensity={self.uv_intensity}, voltage={self.voltage})"
+
+    def complete(self):
+        self.name = "GUVA-S12SD sensor"
+        self.description = "GUVA-S12SD sensor: UV intensity with voltage and raw digital value"
+
+    def getValuesList(self, start_id: int) -> list:
+
+        intensity_dict = SENSOR_OBJECT_TEMPLATE_DICT
+        intensity_dict["id"] = str(start_id).zfill(4)
+        intensity_dict["name"] = str(self.name + SUB_ADD + "uv intensity")
+        intensity_dict["description"] = str(
+            self.description + SUB_ADD + "uv intensity")
+        intensity_dict["unit"] = "mW/cm2"
+        intensity_dict["payload"] = self.uv_intensity
+
+        raw_value_dict = SENSOR_OBJECT_TEMPLATE_DICT
+        raw_value_dict["id"] = str(start_id + 1).zfill(4)
+        raw_value_dict["name"] = str(self.name + SUB_ADD + "raw digital value")
+        raw_value_dict["description"] = str(
+            self.description + SUB_ADD + "digital raw value")
+        raw_value_dict["unit"] = ""
+        raw_value_dict["payload"] = self.raw_value
+
+        voltage_dict = SENSOR_OBJECT_TEMPLATE_DICT
+        voltage_dict["id"] = str(start_id + 2).zfill(4)
+        voltage_dict["name"] = str(self.name + SUB_ADD + "voltage")
+        voltage_dict["description"] = str(
+            self.description + SUB_ADD + "voltage")
+        voltage_dict["unit"] = "volt"
+        voltage_dict["payload"] = self.voltage
+
+        result = [intensity_dict, raw_value_dict, voltage_dict]
+        return result
 
 
 class CO2SensorData(SensorData):
@@ -111,9 +210,41 @@ class CO2SensorData(SensorData):
         self.temperature = data.get("temperature", 0.0)
         self.name = name
         self.description = description
+        self.num_values = 3
 
     def __str__(self):
         return f"CO2SensorData(co2={self.co2}, humidity={self.humidity}, temperature={self.temperature})"
+
+    def complete(self):
+        self.name = "SCD41 sensor"
+        self.description = "SCD41 sensor: CO2, temperature and humidity"
+
+    def getValuesList(self, start_id: int) -> list:
+
+        co2_dict = SENSOR_OBJECT_TEMPLATE_DICT
+        co2_dict["id"] = str(start_id).zfill(4)
+        co2_dict["name"] = str(self.name + SUB_ADD + "co2")
+        co2_dict["description"] = str(self.description + SUB_ADD + "co2")
+        co2_dict["unit"] = "ppm"
+        co2_dict["payload"] = self.co2
+
+        temp_dict = SENSOR_OBJECT_TEMPLATE_DICT
+        temp_dict["id"] = str(start_id + 1).zfill(4)
+        temp_dict["name"] = str(self.name + SUB_ADD + "temperature")
+        temp_dict["description"] = str(
+            self.description + SUB_ADD + "temperature")
+        temp_dict["unit"] = "degree C"
+        temp_dict["payload"] = self.temperature
+
+        humi_dict = SENSOR_OBJECT_TEMPLATE_DICT
+        humi_dict["id"] = str(start_id + 2).zfill(4)
+        humi_dict["name"] = str(self.name + SUB_ADD + "humidity")
+        humi_dict["description"] = str(self.description + SUB_ADD + "humidity")
+        humi_dict["unit"] = "percentage"
+        humi_dict["payload"] = self.humidity
+
+        result = [co2_dict, temp_dict, humi_dict]
+        return result
 
 
 class SensorDataFactory:
@@ -160,6 +291,9 @@ class SensorDataFactory:
 
 
 class SensorDataMessage:
+    global location_id, location_description
+    global message_count
+
     def __init__(self, num_of_sensors: int) -> None:
         self._sensors_data_dict = {}
         self._num_of_sensors = num_of_sensors
@@ -173,15 +307,64 @@ class SensorDataMessage:
     def isFull(self) -> bool:
         return self._num_of_sensors == len(self._sensors_data_dict)
 
-    def createMessage(self, message) -> bool:
-        if not self.isFull():
-            return False
+    def getCurrentLocation(self):
+        return 0, 0, 0
 
-    def createSensorObjectDict(self, sub_name: str, unit: str, value: int | float | list) -> dict:
-        template = SENSOR_OBJECT_TEMPLATE_DICT
+    def createMessage(self):
+        if not self.isFull():
+            return False, ''
+
+        message_dict = SENSOR_DATA_MESSAGE_TEMPLATE_DICT
+
+        def createMessageID() -> str:
+            global message_count
+            msg_id = "sen-" + \
+                location_id.zfill(4) + '-' + str(message_count).zfill(8)
+            message_count += 1
+            return msg_id
+
+        def updatePayload() -> None:
+            payload = message_dict["payload"]
+
+            payload["message_id"] = createMessageID()
+
+            payload["timestamp"] = datetime.now().isoformat()
+
+            lat, lon, alt = self.getCurrentLocation()
+            payload["location"] = self.createLocationObjectDict(lat, lon, alt)
+
+            n_o_s = 0
+            for key, sensor in self._sensors_data_dict.items():
+                n_o_s += sensor.num_values
+            payload["number_of_sensors"] = int(n_o_s)
+
+            values_list = []
+            for key, sensor in self._sensors_data_dict.items():
+                curr_list = sensor.getValuesList(start_id=self._count)
+                values_list.extend(curr_list)
+                self._count += sensor.num_values
+            payload["sensor_list"] = values_list
+
+        updatePayload()
+
+        message = json.dumps(message_dict, indent=4)
+        return True, message
+
+    def createLocationObjectDict(self, lat: str, lon: str, alt: str):
+        location = LOCATION_TEMPLATE_DICT
+
+        location["id"] = str(location_id)
+        location["lat"] = float(lat)
+        location["lon"] = float(lon)
+        location["alt"] = float(alt)
+        location["description"] = str(location_description)
+
+        return location
 
 
 class MQTTClient:
+    global number_of_sensors
+
     def __init__(self, host: str, port: int) -> None:
         '''
         Initializes an instance of the MQTTClient class.
@@ -200,6 +383,8 @@ class MQTTClient:
         self._client = mqtt.Client()
         self._client.on_connect = self.on_connect
         self._client.on_message = self.on_message
+        self._sensor_message = SensorDataMessage(
+            num_of_sensors=number_of_sensors)
 
         try:
             self._client.connect(self._host, self._port,
@@ -237,8 +422,20 @@ class MQTTClient:
             return
 
         sensor = SensorDataFactory.from_dict(msg_dict)
-        print(f"\n{sensor.__class__.__name__}")
-        print(sensor)
+        sensor.complete()
+
+        self._sensor_message.appendSensor(sensor=sensor)
+        result, message = self._sensor_message.createMessage()
+        if result:
+            print(message)
+            self._sensor_message = SensorDataMessage(
+                num_of_sensors=number_of_sensors)
+
+        def debug_display(self):
+            print(f"\n{sensor.__class__.__name__}")
+            print(f"{sensor.name} | {sensor.description}")
+            print(sensor)
+        # debug_display(self)
 
 ###############################################################################
 
