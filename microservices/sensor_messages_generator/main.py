@@ -6,6 +6,8 @@ import redis
 from dotenv import load_dotenv
 import os
 from typing import Dict, Type
+import copy
+import sys
 
 DOTENV_FILE_PATH = '.env'
 MQTT_ALL_TOPICS_WILDCARD = '#'
@@ -48,6 +50,7 @@ amqp_port = int(os.getenv('AMQP_PORT'))
 amqp_vhost = os.getenv('AMQP_VIRTUAL_HOST')
 amqp_username = os.getenv('AMQP_USERNAME')
 amqp_password = os.getenv('AMQP_PASSWORD')
+amqp_sensor_queue = os.getenv('AMQP_SENSOR_QUEUE')
 
 redis_host = os.getenv('REDIS_HOST')
 redis_port = int(os.getenv('REDIS_PORT'))
@@ -61,6 +64,17 @@ message_count = 0
 
 
 def getDataRedis():
+    '''
+    Fetches location data from a Redis database and assigns it to global variables.
+
+    This function connects to a Redis database using the global variables
+    `redis_host`, `redis_port`, and `redis_db` to configure the connection.
+    It retrieves the values for "LOCATION_ID" and "LOCATION_DESCRIPTION" keys
+    from the Redis database and assigns them to the global variables
+    `location_id` and `location_description`, respectively. If any retrieval
+    fails, it assigns default values: "-1" for `location_id` and "nil" for
+    `location_description`.
+    '''
     global redis_host, redis_port, redis_db
     global location_id, location_description
     redis_client = redis.Redis(
@@ -93,9 +107,26 @@ class SensorData:
         return f"SensorData: {self.data}"
 
     def complete(self):
+        """
+        Completes the object by setting the name and description
+        attributes to predefined values specific to the sensor.
+        """
         pass
 
     def getValuesList(self, start_id: int) -> list:
+        """
+        Generates a list of dictionaries representing sensor data.
+
+        Each dictionary contains an ID, name, description, unit, and payload for a specific
+        particulate matter sensor reading. The IDs are sequentially generated starting from
+        the given start_id.
+
+        Args:
+            start_id (int): The starting ID for the sensor data entries.
+
+        Returns:
+            list: A list of dictionaries, each representing a sensor data entry.
+        """
         pass
 
 
@@ -122,21 +153,21 @@ class PMSensorData(SensorData):
 
     def getValuesList(self, start_id: int) -> list:
 
-        pm1_dict = SENSOR_OBJECT_TEMPLATE_DICT
+        pm1_dict = copy.deepcopy(SENSOR_OBJECT_TEMPLATE_DICT)
         pm1_dict["id"] = str(start_id).zfill(4)
         pm1_dict["name"] = str(self.name + SUB_ADD + "pm1")
         pm1_dict["description"] = str(self.description + SUB_ADD + "pm1")
         pm1_dict["unit"] = "ug/m3"
         pm1_dict["payload"] = self.pm1
 
-        pm25_dict = SENSOR_OBJECT_TEMPLATE_DICT
+        pm25_dict = copy.deepcopy(SENSOR_OBJECT_TEMPLATE_DICT)
         pm25_dict["id"] = str(start_id + 1).zfill(4)
         pm25_dict["name"] = str(self.name + SUB_ADD + "pm2.5")
         pm25_dict["description"] = str(self.description + SUB_ADD + "pm2.5")
         pm25_dict["unit"] = "ug/m3"
         pm25_dict["payload"] = self.pm25
 
-        pm10_dict = SENSOR_OBJECT_TEMPLATE_DICT
+        pm10_dict = copy.deepcopy(SENSOR_OBJECT_TEMPLATE_DICT)
         pm10_dict["id"] = str(start_id + 2).zfill(4)
         pm10_dict["name"] = str(self.name + SUB_ADD + "pm10")
         pm10_dict["description"] = str(self.description + SUB_ADD + "pm10")
@@ -170,7 +201,7 @@ class UVSensorData(SensorData):
 
     def getValuesList(self, start_id: int) -> list:
 
-        intensity_dict = SENSOR_OBJECT_TEMPLATE_DICT
+        intensity_dict = copy.deepcopy(SENSOR_OBJECT_TEMPLATE_DICT)
         intensity_dict["id"] = str(start_id).zfill(4)
         intensity_dict["name"] = str(self.name + SUB_ADD + "uv intensity")
         intensity_dict["description"] = str(
@@ -178,7 +209,7 @@ class UVSensorData(SensorData):
         intensity_dict["unit"] = "mW/cm2"
         intensity_dict["payload"] = self.uv_intensity
 
-        raw_value_dict = SENSOR_OBJECT_TEMPLATE_DICT
+        raw_value_dict = copy.deepcopy(SENSOR_OBJECT_TEMPLATE_DICT)
         raw_value_dict["id"] = str(start_id + 1).zfill(4)
         raw_value_dict["name"] = str(self.name + SUB_ADD + "raw digital value")
         raw_value_dict["description"] = str(
@@ -186,7 +217,7 @@ class UVSensorData(SensorData):
         raw_value_dict["unit"] = ""
         raw_value_dict["payload"] = self.raw_value
 
-        voltage_dict = SENSOR_OBJECT_TEMPLATE_DICT
+        voltage_dict = copy.deepcopy(SENSOR_OBJECT_TEMPLATE_DICT)
         voltage_dict["id"] = str(start_id + 2).zfill(4)
         voltage_dict["name"] = str(self.name + SUB_ADD + "voltage")
         voltage_dict["description"] = str(
@@ -221,14 +252,14 @@ class CO2SensorData(SensorData):
 
     def getValuesList(self, start_id: int) -> list:
 
-        co2_dict = SENSOR_OBJECT_TEMPLATE_DICT
+        co2_dict = copy.deepcopy(SENSOR_OBJECT_TEMPLATE_DICT)
         co2_dict["id"] = str(start_id).zfill(4)
         co2_dict["name"] = str(self.name + SUB_ADD + "co2")
         co2_dict["description"] = str(self.description + SUB_ADD + "co2")
         co2_dict["unit"] = "ppm"
         co2_dict["payload"] = self.co2
 
-        temp_dict = SENSOR_OBJECT_TEMPLATE_DICT
+        temp_dict = copy.deepcopy(SENSOR_OBJECT_TEMPLATE_DICT)
         temp_dict["id"] = str(start_id + 1).zfill(4)
         temp_dict["name"] = str(self.name + SUB_ADD + "temperature")
         temp_dict["description"] = str(
@@ -236,7 +267,7 @@ class CO2SensorData(SensorData):
         temp_dict["unit"] = "degree C"
         temp_dict["payload"] = self.temperature
 
-        humi_dict = SENSOR_OBJECT_TEMPLATE_DICT
+        humi_dict = copy.deepcopy(SENSOR_OBJECT_TEMPLATE_DICT)
         humi_dict["id"] = str(start_id + 2).zfill(4)
         humi_dict["name"] = str(self.name + SUB_ADD + "humidity")
         humi_dict["description"] = str(self.description + SUB_ADD + "humidity")
@@ -297,10 +328,20 @@ class SensorDataMessage:
     def __init__(self, num_of_sensors: int) -> None:
         self._sensors_data_dict = {}
         self._num_of_sensors = num_of_sensors
-        self._message_template_dict = SENSOR_DATA_MESSAGE_TEMPLATE_DICT
+        self._message_template_dict = copy.deepcopy(
+            SENSOR_DATA_MESSAGE_TEMPLATE_DICT)
         self._count = 0
 
     def appendSensor(self, sensor: SensorData):
+        """
+        Adds a SensorData object to the internal sensors data dictionary.
+
+        The sensor is stored in the dictionary with its class name as the key.
+
+        Args:
+            sensor (SensorData): The sensor data object to be added.
+        """
+
         sensor_class = sensor.__class__.__name__
         self._sensors_data_dict[sensor_class] = sensor
 
@@ -311,10 +352,23 @@ class SensorDataMessage:
         return 0, 0, 0
 
     def createMessage(self):
+        """
+        Creates a sensor data message if the sensor list is full.
+
+        This method generates a message dictionary based on the 
+        SENSOR_DATA_MESSAGE_TEMPLATE_DICT, populates it with the 
+        current sensor data, and returns it as a JSON string.
+
+        Returns:
+            tuple: A tuple containing a boolean indicating success 
+            and the JSON string of the message. Returns (False, '') 
+            if the sensor list is not full.
+        """
+
         if not self.isFull():
             return False, ''
 
-        message_dict = SENSOR_DATA_MESSAGE_TEMPLATE_DICT
+        message_dict = copy.deepcopy(SENSOR_DATA_MESSAGE_TEMPLATE_DICT)
 
         def createMessageID() -> str:
             global message_count
@@ -351,7 +405,24 @@ class SensorDataMessage:
         return True, message
 
     def createLocationObjectDict(self, lat: str, lon: str, alt: str):
-        location = LOCATION_TEMPLATE_DICT
+        """
+        Creates a dictionary representing a location object.
+
+        This method initializes a location dictionary based on the 
+        LOCATION_TEMPLATE_DICT, populates it with the provided latitude, 
+        longitude, and altitude values, and includes global location 
+        identifiers and description.
+
+        Args:
+            lat (str): The latitude of the location.
+            lon (str): The longitude of the location.
+            alt (str): The altitude of the location.
+
+        Returns:
+            dict: A dictionary containing the location data.
+        """
+
+        location = LOCATION_TEMPLATE_DICT.copy()
 
         location["id"] = str(location_id)
         location["lat"] = float(lat)
@@ -362,8 +433,62 @@ class SensorDataMessage:
         return location
 
 
+class SimpleRabbitMQPublisher:
+    def __init__(
+            self,
+            host: str, port: int, virtual_host: str,
+            username: str, password: str, queue: str):
+        """
+        Initializes the RabbitMQ publisher with the provided connection parameters.
+
+        :param host: The hostname or IP address of the RabbitMQ broker.
+        :param port: The port number to connect to the RabbitMQ broker.
+        :param virtual_host: The virtual host to use when connecting.
+        :param username: The username for authentication.
+        :param password: The password for authentication.
+        """
+        credentials = pika.PlainCredentials(username, password)
+        parameters = pika.ConnectionParameters(
+            host=host,
+            port=port,
+            virtual_host=virtual_host,
+            credentials=credentials
+        )
+        self.connection = pika.BlockingConnection(parameters)
+        self.channel = self.connection.channel()
+        self.queue = queue
+        self.channel.queue_declare(queue=self.queue, durable=True)
+
+    def publish(self, message: str | dict) -> bool:
+        try:
+            if isinstance(message, dict):
+                message_body = json.dumps(obj=message)
+            else:
+                message_body = message
+            self.channel.basic_publish(
+                exchange='',
+                routing_key=self.queue,
+                body=message_body
+            )
+        except Exception as e:
+            print(f'[ERR]: {e}', file=sys.stderr)
+            return False
+        return True
+
+    def close(self):
+        """Closes the connection to the RabbitMQ broker."""
+        if self.connection and not self.connection.is_closed:
+            self.connection.close()
+
+
+rabbitmq_publisher = SimpleRabbitMQPublisher(
+    host=amqp_host, port=amqp_port, virtual_host=amqp_vhost,
+    username=amqp_username, password=amqp_password, queue=amqp_sensor_queue)
+
+
 class MQTTClient:
     global number_of_sensors
+    global rabbitmq_publisher
 
     def __init__(self, host: str, port: int) -> None:
         '''
@@ -411,7 +536,19 @@ class MQTTClient:
         client.subscribe(MQTT_ALL_TOPICS_WILDCARD)
 
     def on_message(self, client, userdata, msg: mqtt.MQTTMessage):
-        # print(f"Received message: {msg.payload.decode()} on topic {msg.topic}")
+        """
+        Handles incoming MQTT messages.
+
+        Decodes the payload of the received message and processes it
+        using the messageProcessing method.
+
+        Parameters:
+            client (paho.mqtt.client.Client): The MQTT client instance.
+            userdata (any): The private user data as set in Client() or userdata_set().
+            msg (paho.mqtt.client.MQTTMessage): The message instance containing
+            the topic and payload.
+        """
+
         msg_payload = msg.payload.decode()
         self.messageProcessing(msg_str=msg_payload)
 
@@ -427,15 +564,9 @@ class MQTTClient:
         self._sensor_message.appendSensor(sensor=sensor)
         result, message = self._sensor_message.createMessage()
         if result:
-            print(message)
+            rabbitmq_publisher.publish(message=message)
             self._sensor_message = SensorDataMessage(
                 num_of_sensors=number_of_sensors)
-
-        def debug_display(self):
-            print(f"\n{sensor.__class__.__name__}")
-            print(f"{sensor.name} | {sensor.description}")
-            print(sensor)
-        # debug_display(self)
 
 ###############################################################################
 
