@@ -462,7 +462,7 @@ class SimpleRabbitMQPublisher:
     def publish(self, message: str | dict) -> bool:
         try:
             if isinstance(message, dict):
-                message_body = json.dumps(obj=message)
+                message_body = json.dumps(obj=message, indent=4)
             else:
                 message_body = message
             self.channel.basic_publish(

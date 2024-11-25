@@ -20,63 +20,66 @@
         "number_of_objects": 3,
         "object_list": [
             {
-                "Human": {
-                    "id": "01",
-                    "gender": "Male",
+                "id": "01",
+                "bbox": {
+                    "topleftx": 32,
+                    "toplefty": 0,
+                    "bottomrightx": 177,
+                    "bottomrighty": 0
+                },
+                "image_URL": "https://picsum.photos/1280/720",
+                "object": {
+                    "type": "human",
                     "age": "20",
-                    "bbox": {
-                        "topleftx": 32,
-                        "toplefty": 0,
-                        "bottomrightx": 177,
-                        "bottomrighty": 0
-                    },
-                    "image_URL": "https://example.com"
+                    "gender": "Male"
                 }
             },
             {
-                "Human": {
-                    "id": "02",
-                    "gender": "Female",
-                    "age": "30",
-                    "bbox": {
-                        "topleftx": 35,
-                        "toplefty": 0,
-                        "bottomrightx": 145,
-                        "bottomrighty": 0
-                    }
+                "id": "02",
+                "bbox": {
+                    "topleftx": 345,
+                    "toplefty": 0,
+                    "bottomrightx": 108,
+                    "bottomrighty": 20
                 },
-                "image_URL": "https://example.com"
+                "image_URL": "https://picsum.photos/1280/720",
+                "object": {
+                    "type": "human",
+                    "age": "20",
+                    "gender": "Male"
+                }
             },
             {
-                "Vehicle": {
-                    "id": "03",
-                    "type": "Personal car",
+                "id": "03",
+                "bbox": {
+                    "topleftx": 345,
+                    "toplefty": 0,
+                    "bottomrightx": 108,
+                    "bottomrighty": 20
+                },
+                "image_URL": "https://picsum.photos/1280/720",
+                "object": {
+                    "type": "vehicle",
+                    "category": "Personal car",
                     "brand": "BMW",
                     "color": "Black",
-                    "Licence": "29A-12345",
-                    "bbox": {
-                        "topleftx": 345,
-                        "toplefty": 0,
-                        "bottomrightx": 108,
-                        "bottomrighty": 20
-                    },
-                    "image_URL": "https://example.com"
+                    "licence": "29A-12345"
                 }
             }
         ],
         "number_of_events": 2,
         "event_list": [
             {
-                "human_event": {
-                    "object_id": "01",
-                    "action": "EVENT_HUMAN_RUN",
-                    "video_URL": "https://example.com"
-                },
-                "vehicle_event": {
-                    "object_id": "03",
-                    "action": "EVENT_VEHICLE_PARK",
-                    "video_URL": "https://example.com"
-                }
+                "object_id": "01",
+                "action": "EVENT_HUMAN_RUN",
+                "video_URL": "https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4",
+                "type": "human_event"
+            },
+            {
+                "object_id": "03",
+                "action": "EVENT_VEHICLE_PARK",
+                "video_URL": "https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_2mb.mp4",
+                "type": "vehicle_event"
             }
         ]
     }
