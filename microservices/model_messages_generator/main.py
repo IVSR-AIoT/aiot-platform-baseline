@@ -7,10 +7,74 @@ import os
 import copy
 import sys
 from enum import Enum
+from lib import ftp, aws
 
 DOTENV_FILE_PATH = '.env'
+MAX_FILE_SIZE_IN_MB = 10
+IMAGE_FILE_EXTENSION = '.png'
 
-OBJECT_MESSAGE_TEMPLATE = {}
+HUMAN_OBJECT_TEMPLATE_DICT = {
+    "type": "Human",
+    "age": int,
+    "gender": str
+}
+
+VEHICLE_OBJECT_TEMPLATE_DICT = {
+    "type": "Vehicle",
+    "category": str,
+    "brand": str,
+    "color": str,
+    "licence": str
+}
+
+OBJECT_TEMPLATE_DICT = {
+    "id": str,
+    "bbox": {
+        "topleftx": int,
+        "toplefty": int,
+        "bottomrightx": int,
+        "bottomrighty": int
+    },
+    "image_URL": str,
+    "object": dict
+}
+
+EVENT_TEMPLATE_DICT = {
+    "object_id": str,
+    "action": str,
+    "video_URL": str,
+    "type": str
+}
+
+LOCATION_TEMPLATE_DICT = {
+    "id": str,
+    "lat": float,
+    "lon": float,
+    "alt": float,
+    "description": str
+}
+
+MODEL_SPECS_TEMPLATE_DICT = {
+    "description": str,
+    "camera": {
+        "id": str,
+        "type": str
+    }
+}
+
+OBJECT_MESSAGE_TEMPLATE_DICT = {
+    "message_type": "object",
+    "payload": {
+        "message_id": str,
+        "timestamp": str,
+        "location": LOCATION_TEMPLATE_DICT,
+        "specs": MODEL_SPECS_TEMPLATE_DICT,
+        "number_of_objects": int,
+        "object_list": list,
+        "number_of_events": int,
+        "event_list": list
+    },
+}
 
 
 class ObjectType(Enum):
@@ -32,24 +96,25 @@ redis_host = os.getenv('REDIS_HOST')
 redis_port = int(os.getenv('REDIS_PORT'))
 redis_db = os.getenv('REDIS_DB')
 
+s3_bucket = os.getenv('S3_BUCKET')
+s3_file_destination_directory = os.getenv('S3_DESTINATION_DIR')
+s3_start_url = os.getenv('S3_START_URL')
+
+local_image_directory = os.getenv('LOCAL_IMAGE_DIRECTORY')
+
 location_id = ""
 location_description = ""
+message_count = 0
+model_description = ""
+camera_id = ""
+camera_type = ""
 
 
 def getDataRedis():
-    '''
-    Fetches location data from a Redis database and assigns it to global variables.
 
-    This function connects to a Redis database using the global variables
-    `redis_host`, `redis_port`, and `redis_db` to configure the connection.
-    It retrieves the values for "LOCATION_ID" and "LOCATION_DESCRIPTION" keys
-    from the Redis database and assigns them to the global variables
-    `location_id` and `location_description`, respectively. If any retrieval
-    fails, it assigns default values: "-1" for `location_id` and "nil" for
-    `location_description`.
-    '''
     global redis_host, redis_port, redis_db
     global location_id, location_description
+    global camera_id, camera_type
     redis_client = redis.Redis(
         host=redis_host, port=redis_port, db=redis_db)
 
@@ -62,6 +127,16 @@ def getDataRedis():
         location_description = str(redis_client.get("LOCATION_DESCRIPTION"))
     except Exception as e:
         location_description = "nil"
+
+    try:
+        camera_id = str(redis_client.get("CAMERA_ID")).zfill(4)
+    except Exception as e:
+        location_id = str(int(-1))
+
+    try:
+        camera_type = str(redis_client.get("CAMERA_TYPE"))
+    except Exception as e:
+        camera_type = 'RGB'
 
 
 getDataRedis()  # Get LOCATION_ID, LOCATION_DESCRIPTION from redis db
@@ -116,7 +191,7 @@ class RabbitMQClient:
             self.connection.close()
 
 
-class Object:
+class RawObject:
     '''
     Base class of all object data.
     '''
@@ -143,3 +218,130 @@ class Object:
         except json.JSONDecodeError as e:
             print("Failed to decode model message: {e}", file=sys.stderr)
 
+
+class ObjectDataMessage:
+    global location_id, location_description
+    global s3_bucket, s3_file_destination_directory, s3_start_url
+    global message_count, local_image_directory
+
+    def __init__(self, raw_obj_msg_list: list = [], raw_evn_msg_list: list = []):
+        self._num_of_objects = len(raw_obj_msg_list)
+        self._num_of_events = len(raw_evn_msg_list)
+        self._message_template_dict = copy.deepcopy(
+            OBJECT_MESSAGE_TEMPLATE_DICT)
+
+        self._raw_object_list: list[RawObject] = []
+        for raw_object_message in raw_obj_msg_list:
+            self._raw_object_list.append(
+                RawObject().load(raw_str=raw_object_message))
+
+        self._file_transfer_handler = ftp.FileTransferHandler(
+            bucket=s3_bucket, max_size_mb=MAX_FILE_SIZE_IN_MB)
+
+        _upload_result = True
+
+    def getCurretLocation(self):
+        return 0, 0, 0
+
+    def createLocationObjectDict(self, lat: str, lon: str, alt: str):
+        """
+        Creates a dictionary representing a location object.
+
+        This method initializes a location dictionary based on the 
+        LOCATION_TEMPLATE_DICT, populates it with the provided latitude, 
+        longitude, and altitude values, and includes global location 
+        identifiers and description.
+
+        Args:
+            lat (str): The latitude of the location.
+            lon (str): The longitude of the location.
+            alt (str): The altitude of the location.
+
+        Returns:
+            dict: A dictionary containing the location data.
+        """
+
+        location = LOCATION_TEMPLATE_DICT.copy()
+
+        location["id"] = str(location_id)
+        location["lat"] = float(lat)
+        location["lon"] = float(lon)
+        location["alt"] = float(alt)
+        location["description"] = str(location_description)
+
+        return location
+
+    def createModelSpecs(self, description: str, cam_id: str, cam_type: str):
+        specs = MODEL_SPECS_TEMPLATE_DICT.copy()
+        specs["description"] = description
+        specs["camera"] = {
+            "id": cam_id,
+            "type": cam_type
+        }
+
+        return specs
+
+    def uploadImage(self, image_path: str) -> bool:
+        des = s3_file_destination_directory + '/' + image_path
+        self._upload_result = self._file_transfer_handler.uploadFile(
+            file_path=image_path, destination=des)
+
+        return self._upload_result
+
+    def createObjectList(self) -> list:
+
+        def createObjectDetail(object_type: ObjectType) -> dict:
+            if object_type == ObjectType.HUMAN:
+                object_detail = HUMAN_OBJECT_TEMPLATE_DICT.copy()
+            elif object_type == ObjectType.VEHICLE:
+                object_detail == VEHICLE_OBJECT_TEMPLATE_DICT.copy()
+
+            return object_detail
+
+        def createBboxDict(self, raw_object: RawObject) -> dict:
+            return {
+                "topleftx": raw_object.bounding_box[0],
+                "toplefty": raw_object.bounding_box[1],
+                "bottomrightx": raw_object.bounding_box[2],
+                "bottomrighty": raw_object.bounding_box[3]
+            },
+
+        object_list = []
+        for raw_object in self._raw_object_list:
+            object = copy.deepcopy(OBJECT_TEMPLATE_DICT)
+
+            object["id"] = raw_object.object_id
+            object["bbox"] = createBboxDict(raw_object=raw_object)
+
+            image_path = local_image_directory + '/' + \
+                raw_object.timestamp + IMAGE_FILE_EXTENSION
+
+            if not self.uploadImage(image_path=image_path):
+                self._upload_result = False
+                continue
+
+            object["image_URL"] = s3_start_url + '/' + s3_file_destination_directory + \
+                '/' + raw_object.timestamp + IMAGE_FILE_EXTENSION
+
+            if (raw_object.object_type == "Human"):
+                object["object"] = createObjectDetail(
+                    object_type=ObjectType.HUMAN)
+            elif (raw_object.object_type == "Vehicle"):
+                object["object"] = createObjectDetail(
+                    object_type=ObjectType.VEHICLE)
+
+            object_list.append(object)
+
+        return object_list
+
+    def createObjectID(self) -> str:
+        global message_count
+        msg_id = "obj-" + \
+            camera_id.zfill(4) + '-' + str(message_count).zfill(8)
+        message_count += 1
+        return msg_id
+
+    def createTimestamp(self) -> str:
+        return self._raw_object_list[0].timestamp
+
+    
