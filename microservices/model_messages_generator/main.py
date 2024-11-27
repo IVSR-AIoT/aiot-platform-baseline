@@ -185,6 +185,31 @@ class RabbitMQClient:
             return False
         return True
 
+    def start(self):
+        def callback(ch, method, properties, body):
+            global local_image_directory
+
+            raw_object = RawObject().load(body.decode())
+            raw_object_list = [raw_object]
+            object_data_message = ObjectDataMessage(
+                raw_obj_msg_list=raw_object_list)
+            message_str = object_data_message.createMessage()
+            result = self.objectPublish(message=message_str)
+
+            if result and object_data_message._upload_result:
+                for obj in object_data_message._raw_object_list:
+                    ts = obj.timestamp
+                    path = local_image_directory + ts + IMAGE_FILE_EXTENSION
+                    os.remove(path=path)
+
+        self.model_channel.basic_consume(
+            queue=self.model_queue, on_message_callback=callback, auto_ack=True)
+
+        try:
+            self.model_channel.start_consuming()
+        except Exception as e:
+            self.close()
+
     def close(self):
         """Closes the connection to the RabbitMQ broker."""
         if self.connection and not self.connection.is_closed:
@@ -201,6 +226,7 @@ class RawObject:
         self.object_id = id
         self.object_type = type
         self.bounding_box = bbox
+        self.version = 'ver.1'
         pass
 
     # def __str__(self):
@@ -334,7 +360,10 @@ class ObjectDataMessage:
 
         return object_list
 
-    def createObjectID(self) -> str:
+    def createEventList(self) -> list:
+        return []
+
+    def createMessageID(self) -> str:
         global message_count
         msg_id = "obj-" + \
             camera_id.zfill(4) + '-' + str(message_count).zfill(8)
@@ -344,4 +373,27 @@ class ObjectDataMessage:
     def createTimestamp(self) -> str:
         return self._raw_object_list[0].timestamp
 
-    
+    def createMessage(self) -> dict | str:
+        message = copy.deepcopy(OBJECT_MESSAGE_TEMPLATE_DICT)
+        message["message_type"] = "object"
+
+        payload_dict = message["payload"]
+        payload_dict["message_id"] = self.createMessageID()
+        payload_dict["timestamp"] = self.createTimestamp()
+        lat, lon, alt = self.getCurretLocation()
+        payload_dict["location"] = self.createLocationObjectDict(
+            lat=lat, lon=lon, alt=alt)
+        payload_dict["specs"] = self.createModelSpecs(
+            description=model_description, cam_id=camera_id, cam_type=camera_type)
+        payload_dict["number_of_objects"] = self._num_of_objects
+        payload_dict["object_list"] = self.createObjectList()
+        payload_dict["number_of_events"] = self._num_of_events
+        payload_dict["event_list"] = self.createEventList()
+
+        return json.dumps(obj=message, indent=4)
+
+
+if __file__ == "__main__":
+    client = RabbitMQClient(host=amqp_host, port=amqp_port, vhost=amqp_vhost, usr=amqp_username,
+                            pwd=amqp_password, model_queue=amqp_model_queue, object_queue=amqp_object_queue)
+    client.start()
