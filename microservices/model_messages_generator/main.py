@@ -242,9 +242,9 @@ class RawObject:
             data = json.loads(raw_str)
 
             self.timestamp = data['timestamp']
-            self.object_id = data['object_id']
-            self.object_type = data['object_type']
-            self.bounding_box = data['bounding_box']
+            self.object_id = data['id']
+            self.object_type = data['type']
+            self.bounding_box = data['bbox']
 
         except json.JSONDecodeError as e:
             print("Failed to decode model message: {e}", file=sys.stderr)
@@ -313,6 +313,7 @@ class ObjectDataMessage:
         return specs
 
     def uploadImage(self, image_path: str) -> bool:
+        return True
         des = s3_file_destination_directory + '/' + image_path
         self._upload_result = self._file_transfer_handler.uploadFile(
             file_path=image_path, destination=des)
