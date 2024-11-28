@@ -114,7 +114,7 @@ def getDataRedis():
 
     global redis_host, redis_port, redis_db
     global location_id, location_description
-    global camera_id, camera_type
+    global camera_id, camera_type, model_description
     redis_client = redis.Redis(
         host=redis_host, port=redis_port, db=redis_db)
 
@@ -137,6 +137,11 @@ def getDataRedis():
         camera_type = str(redis_client.get("CAMERA_TYPE"))
     except Exception as e:
         camera_type = 'RGB'
+
+    try:
+        model_description = str(redis_client.get("MODEL_DESCRIPTION"))
+    except Exception as e:
+        model_description = 'nil'
 
 
 getDataRedis()  # Get LOCATION_ID, LOCATION_DESCRIPTION from redis db
