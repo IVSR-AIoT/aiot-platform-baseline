@@ -104,11 +104,13 @@ def createChannels():
 
     # Create a channel for the device registry queue
     dev_reg_channel = connection.channel()
-    dev_reg_channel.queue_declare(queue=device_registry_queue, durable=True)
+    dev_reg_channel.queue_declare(
+        queue=device_registry_queue, durable=False, auto_delete=True)
 
     # Create a channel for the accepted devices queue
     acp_dev_channel = connection.channel()
-    acp_dev_channel.queue_declare(queue=accepted_devices_queue, durable=True)
+    acp_dev_channel.queue_declare(
+        queue=accepted_devices_queue, durable=False, auto_delete=True)
 
     return dev_reg_channel, acp_dev_channel
 

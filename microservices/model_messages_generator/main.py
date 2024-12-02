@@ -336,7 +336,7 @@ class ObjectDataMessage:
                 "toplefty": raw_object.bounding_box[1],
                 "bottomrightx": raw_object.bounding_box[2],
                 "bottomrighty": raw_object.bounding_box[3]
-            },
+            }
 
         object_list = []
         for raw_object in self._raw_object_list:
