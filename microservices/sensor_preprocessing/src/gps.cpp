@@ -1,3 +1,4 @@
+ // g++ -o gps gps.cpp -lpaho-mqttpp3 -lpaho-mqtt3as -ljsoncpp -std=c++11
 #include <iostream>
 #include <string>
 #include <sstream>
