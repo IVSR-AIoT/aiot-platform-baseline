@@ -1,0 +1,11 @@
+{
+    "mqtt": {
+      "server_address": "tcp://localhost:1883",
+      "client_id": "gps_publisher",
+      "topic": "/gps"
+    },
+    "gps": {
+      "serial_port": "/dev/ttyUSB3",
+      "baud_rate": 9600
+    }
+  }
