@@ -7,3 +7,4 @@ test/
 **/jsoncpp/
 **/paho.mqtt.c/
 **/paho.mqtt.cpp/
+**/credentials.json

@@ -7,7 +7,7 @@ import os
 import copy
 import sys
 from enum import Enum
-from lib import ftp, aws
+from lib import ftp
 
 DOTENV_FILE_PATH = '.env'
 MAX_FILE_SIZE_IN_MB = 10
@@ -96,9 +96,10 @@ redis_host = os.getenv('REDIS_HOST')
 redis_port = int(os.getenv('REDIS_PORT'))
 redis_db = os.getenv('REDIS_DB')
 
-s3_bucket = os.getenv('S3_BUCKET')
-s3_file_destination_directory = os.getenv('S3_DESTINATION_DIR')
-s3_start_url = os.getenv('S3_START_URL')
+minio_bucket = os.getenv('MINIO_BUCKET')
+minio_file_destination_directory = os.getenv('MINIO_DESTINATION_DIR')
+minio_start_url = os.getenv('MINIO_START_URL')
+minio_credentials_file_path = os.getenv('MINIO_CREDENTIALS_FILE_PATH')
 
 local_image_directory = os.getenv('LOCAL_IMAGE_DIRECTORY')
 
@@ -115,6 +116,7 @@ def getDataRedis():
     global redis_host, redis_port, redis_db
     global location_id, location_description
     global camera_id, camera_type, model_description
+    global minio_bucket
     redis_client = redis.Redis(
         host=redis_host, port=redis_port, db=redis_db)
 
@@ -142,6 +144,11 @@ def getDataRedis():
         model_description = str(redis_client.get("MODEL_DESCRIPTION"))
     except Exception as e:
         model_description = 'nil'
+
+    try:
+        minio_bucket = str(redis_client.get('DEVICE_ID'))
+    except Exception as e:
+        minio_bucket = 'nil'
 
 
 getDataRedis()  # Get LOCATION_ID, LOCATION_DESCRIPTION from redis db
@@ -252,7 +259,7 @@ class RawObject:
 
 class ObjectDataMessage:
     global location_id, location_description
-    global s3_bucket, s3_file_destination_directory, s3_start_url
+    global minio_bucket, minio_file_destination_directory, minio_start_url, minio_credentials_file_path
     global message_count, local_image_directory
 
     def __init__(self, raw_obj_msg_list: list = [], raw_evn_msg_list: list = []):
@@ -267,7 +274,7 @@ class ObjectDataMessage:
                 RawObject().load(raw_str=raw_object_message))
 
         self._file_transfer_handler = ftp.FileTransferHandler(
-            bucket=s3_bucket, max_size_mb=MAX_FILE_SIZE_IN_MB)
+            bucket=minio_bucket, max_size_mb=MAX_FILE_SIZE_IN_MB, json_credentials_file=minio_credentials_file_path)
 
         _upload_result = True
 
@@ -313,8 +320,8 @@ class ObjectDataMessage:
         return specs
 
     def uploadImage(self, image_path: str) -> bool:
-        return True
-        des = s3_file_destination_directory + '/' + image_path
+        # return True
+        des = minio_file_destination_directory + '/' + image_path
         self._upload_result = self._file_transfer_handler.uploadFile(
             file_path=image_path, destination=des)
 
@@ -352,8 +359,9 @@ class ObjectDataMessage:
                 self._upload_result = False
                 continue
 
-            object["image_URL"] = s3_start_url + '/' + s3_file_destination_directory + \
-                '/' + raw_object.timestamp + IMAGE_FILE_EXTENSION
+            object["image_URL"] = minio_start_url + '/' + minio_bucket + '/' + \
+                minio_file_destination_directory + '%2F' + \
+                raw_object.timestamp + IMAGE_FILE_EXTENSION
 
             if (raw_object.object_type == "Human"):
                 object["object"] = createObjectDetail(
