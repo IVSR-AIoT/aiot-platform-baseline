@@ -86,7 +86,7 @@ load_dotenv(dotenv_path=DOTENV_FILE_PATH)
 
 amqp_host = os.getenv('AMQP_HOST')
 amqp_port = int(os.getenv('AMQP_PORT'))
-amqp_vhost = os.getenv('AMQP_VIRTUAL_HOST')
+amqp_vhost = os.getenv('AMQP_VHOST')
 amqp_username = os.getenv('AMQP_USERNAME')
 amqp_password = os.getenv('AMQP_PASSWORD')
 amqp_model_queue = os.getenv('AMQP_MODEL_QUEUE')
@@ -101,7 +101,7 @@ minio_file_destination_directory = os.getenv('MINIO_DESTINATION_DIR')
 minio_start_url = os.getenv('MINIO_START_URL')
 minio_credentials_file_path = os.getenv('MINIO_CREDENTIALS_FILE_PATH')
 
-local_image_directory = os.getenv('LOCAL_IMAGE_DIRECTORY')
+local_image_directory = os.getenv('LOCAL_IMAGE_DIR')
 
 location_id = ""
 location_description = ""
@@ -121,32 +121,35 @@ def getDataRedis():
         host=redis_host, port=redis_port, db=redis_db)
 
     try:
-        location_id = str(redis_client.get("LOCATION_ID")).zfill(4)
+        location_id = str(redis_client.get(
+            "LOCATION_ID").decode('utf-8')).zfill(4)
     except Exception as e:
         location_id = str(int(-1))
 
     try:
-        location_description = str(redis_client.get("LOCATION_DESCRIPTION"))
+        location_description = str(redis_client.get(
+            "LOCATION_DESCRIPTION").decode('utf-8'))
     except Exception as e:
         location_description = "nil"
 
     try:
-        camera_id = str(redis_client.get("CAMERA_ID")).zfill(4)
+        camera_id = str(redis_client.get("CAMERA_ID").decode('utf-8')).zfill(4)
     except Exception as e:
         location_id = str(int(-1))
 
     try:
-        camera_type = str(redis_client.get("CAMERA_TYPE"))
+        camera_type = str(redis_client.get("CAMERA_TYPE").decode('utf-8'))
     except Exception as e:
         camera_type = 'RGB'
 
     try:
-        model_description = str(redis_client.get("MODEL_DESCRIPTION"))
+        model_description = str(redis_client.get(
+            "MODEL_DESCRIPTION").decode('utf-8'))
     except Exception as e:
         model_description = 'nil'
 
     try:
-        minio_bucket = str(redis_client.get('DEVICE_ID'))
+        minio_bucket = str(redis_client.get('DEVICE_ID')).decode('utf-8')
     except Exception as e:
         minio_bucket = 'nil'
 
@@ -181,12 +184,9 @@ class RabbitMQClient:
         self.object_channel.queue_declare(
             queue=self.object_queue, durable=True)
 
-    def objectPublish(self, message: str | dict) -> bool:
+    def objectPublish(self, message: str) -> bool:
         try:
-            if isinstance(message, dict):
-                message_body = json.dumps(obj=message, indent=4)
-            else:
-                message_body = message
+            message_body = message
             self.object_channel.basic_publish(
                 exchange='',
                 routing_key=self.object_queue,
@@ -201,8 +201,10 @@ class RabbitMQClient:
         def callback(ch, method, properties, body):
             global local_image_directory
 
-            raw_object = RawObject().load(body.decode())
-            raw_object_list = [raw_object]
+            raw_object_msg = body.decode()
+            print(f" {raw_object_msg}\n")
+
+            raw_object_list = [raw_object_msg]
             object_data_message = ObjectDataMessage(
                 raw_obj_msg_list=raw_object_list)
             message_str = object_data_message.createMessage()
@@ -211,15 +213,18 @@ class RabbitMQClient:
             if result and object_data_message._upload_result:
                 for obj in object_data_message._raw_object_list:
                     ts = obj.timestamp
-                    path = local_image_directory + ts + IMAGE_FILE_EXTENSION
+                    path = local_image_directory + '/' + ts + IMAGE_FILE_EXTENSION
                     os.remove(path=path)
+                    print(path)
+                ch.basic_ack(delivery_tag=method.delivery_tag)
 
         self.model_channel.basic_consume(
-            queue=self.model_queue, on_message_callback=callback, auto_ack=True)
+            queue=self.model_queue, on_message_callback=callback, auto_ack=False)
 
         try:
             self.model_channel.start_consuming()
         except Exception as e:
+            print(e)
             self.close()
 
     def close(self):
@@ -233,7 +238,7 @@ class RawObject:
     Base class of all object data.
     '''
 
-    def __init__(self, timestamp: str, id: int, type: str, bbox: list):
+    def __init__(self, timestamp: str = '', id: int = 0, type: str = '', bbox: list = []):
         self.timestamp = timestamp
         self.object_id = id
         self.object_type = type
@@ -244,17 +249,32 @@ class RawObject:
     # def __str__(self):
     #     return f"Object:{self.data_dict}"
 
+    def to_dict(self):
+        return {
+            'timestamp': self.timestamp,
+            'id': self.object_id,
+            'type': self.object_type,
+            'bbox': self.bounding_box,
+            'version': self.version,
+        }
+
     def load(self, raw_str: str):
         try:
             data = json.loads(raw_str)
 
-            self.timestamp = data['timestamp']
-            self.object_id = data['id']
-            self.object_type = data['type']
-            self.bounding_box = data['bbox']
+            self.timestamp = data.get('timestamp', 'default_timestamp')
+            self.object_id = data.get('id', 'default_id')
+            self.object_type = data.get('type', 'default_type')
+            self.bounding_box = data.get('bbox', [0, 0, 0, 0])
 
         except json.JSONDecodeError as e:
-            print("Failed to decode model message: {e}", file=sys.stderr)
+            print(f"Failed to decode model message: {e}", file=sys.stderr)
+            self.timestamp = 'default_timestamp'
+            self.object_id = 'default_id'
+            self.object_type = 'default_type'
+            self.bounding_box = [0, 0, 0, 0]  # Set default bounding box
+
+        return self  # Ensure that this always returns an object, even if the input is malformed
 
 
 class ObjectDataMessage:
@@ -276,7 +296,7 @@ class ObjectDataMessage:
         self._file_transfer_handler = ftp.FileTransferHandler(
             bucket=minio_bucket, max_size_mb=MAX_FILE_SIZE_IN_MB, json_credentials_file=minio_credentials_file_path)
 
-        _upload_result = True
+        self._upload_result = True
 
     def getCurretLocation(self):
         return 0, 0, 0
@@ -332,12 +352,14 @@ class ObjectDataMessage:
         def createObjectDetail(object_type: ObjectType) -> dict:
             if object_type == ObjectType.HUMAN:
                 object_detail = HUMAN_OBJECT_TEMPLATE_DICT.copy()
+                object_detail["age"] = -1
+                object_detail["gender"] = "unspecified"
             elif object_type == ObjectType.VEHICLE:
-                object_detail == VEHICLE_OBJECT_TEMPLATE_DICT.copy()
+                object_detail = VEHICLE_OBJECT_TEMPLATE_DICT.copy()
 
             return object_detail
 
-        def createBboxDict(self, raw_object: RawObject) -> dict:
+        def createBboxDict(raw_object: RawObject) -> dict:
             return {
                 "topleftx": raw_object.bounding_box[0],
                 "toplefty": raw_object.bounding_box[1],
@@ -346,6 +368,7 @@ class ObjectDataMessage:
             }
 
         object_list = []
+
         for raw_object in self._raw_object_list:
             object = copy.deepcopy(OBJECT_TEMPLATE_DICT)
 
@@ -387,27 +410,37 @@ class ObjectDataMessage:
     def createTimestamp(self) -> str:
         return self._raw_object_list[0].timestamp
 
-    def createMessage(self) -> dict | str:
+    def createMessage(self) -> str:
         message = copy.deepcopy(OBJECT_MESSAGE_TEMPLATE_DICT)
         message["message_type"] = "object"
 
         payload_dict = message["payload"]
         payload_dict["message_id"] = self.createMessageID()
         payload_dict["timestamp"] = self.createTimestamp()
+
         lat, lon, alt = self.getCurretLocation()
         payload_dict["location"] = self.createLocationObjectDict(
             lat=lat, lon=lon, alt=alt)
-        payload_dict["specs"] = self.createModelSpecs(
-            description=model_description, cam_id=camera_id, cam_type=camera_type)
+
+        # Check for missing fields, provide default values where necessary
+        payload_dict["specs"] = self.createModelSpecs(description=model_description or 'default_model',
+                                                      cam_id=camera_id or 'default_cam',
+                                                      cam_type=camera_type or 'default_type')
+
         payload_dict["number_of_objects"] = self._num_of_objects
+        # This now contains dicts, not RawObject instances
         payload_dict["object_list"] = self.createObjectList()
         payload_dict["number_of_events"] = self._num_of_events
         payload_dict["event_list"] = self.createEventList()
 
-        return json.dumps(obj=message, indent=4)
+        try:
+            return json.dumps(obj=message, indent=4)
+        except Exception as e:
+            print(f"[ERROR] Exception during json.dumps: {e}", file=sys.stderr)
+            raise
 
 
-if __file__ == "__main__":
+if __name__ == "__main__":
     client = RabbitMQClient(host=amqp_host, port=amqp_port, vhost=amqp_vhost, usr=amqp_username,
                             pwd=amqp_password, model_queue=amqp_model_queue, object_queue=amqp_object_queue)
     client.start()

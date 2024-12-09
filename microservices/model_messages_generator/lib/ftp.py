@@ -1,6 +1,4 @@
-from . import aws
 import os
-import concurrent.futures
 from . import minio_v2
 import json
 
