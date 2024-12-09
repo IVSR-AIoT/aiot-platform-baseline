@@ -62,6 +62,7 @@ if MAC_address is None or MAC_address == '':
     # Generate the MAC address from the UUID if not provided
     MAC_address = hex(uuid.getnode()).replace('0x', '').upper()
     MAC_address = ':'.join(MAC_address[i:i+2] for i in range(0, 12, 2))
+print(f"My MAC: {MAC_address}")
 device_name = os.getenv("NAME")               # Device name
 device_description = os.getenv("DESCRIPTION")  # Device description
 
@@ -104,13 +105,13 @@ def createChannels():
 
     # Create a channel for the device registry queue
     dev_reg_channel = connection.channel()
-    dev_reg_channel.queue_declare(
-        queue=device_registry_queue, durable=False, auto_delete=True)
+    # dev_reg_channel.queue_declare(
+    #     queue=device_registry_queue, durable=False, auto_delete=True)
 
     # Create a channel for the accepted devices queue
     acp_dev_channel = connection.channel()
-    acp_dev_channel.queue_declare(
-        queue=accepted_devices_queue, durable=False, auto_delete=True)
+    # acp_dev_channel.queue_declare(
+    #     queue=accepted_devices_queue, durable=False, auto_delete=True)
 
     return dev_reg_channel, acp_dev_channel
 
@@ -268,10 +269,12 @@ if __name__ == '__main__':
 
     while True:
         # Publish the device registration message to the device registry queue
+        msg_body = generateMessage()
+        print(f"Pub this msg: {msg_body}")
         device_registry_channel.basic_publish(
             exchange='',
             routing_key=device_registry_queue,
-            body=generateMessage()
+            body=msg_body
         )
 
         # Consume messages with a timeout
