@@ -116,7 +116,7 @@ def getDataRedis():
     global redis_host, redis_port, redis_db
     global location_id, location_description
     global camera_id, camera_type, model_description
-    global minio_bucket
+    global minio_bucket, minio_file_destination_directory
     redis_client = redis.Redis(
         host=redis_host, port=redis_port, db=redis_db)
 
@@ -149,9 +149,15 @@ def getDataRedis():
         model_description = 'nil'
 
     try:
-        minio_bucket = str(redis_client.get('DEVICE_ID')).decode('utf-8')
+        minio_bucket = str(redis_client.get('MINIO_BUCKET')).decode('utf-8')
     except Exception as e:
         minio_bucket = 'nil'
+
+    try:
+        device_id = str(redis_client.get('DEVICE_ID')).decode('utf-8')
+        minio_file_destination_directory = minio_file_destination_directory + '/' + device_id
+    except Exception as e:
+        device_id = ''
 
 
 getDataRedis()  # Get LOCATION_ID, LOCATION_DESCRIPTION from redis db
