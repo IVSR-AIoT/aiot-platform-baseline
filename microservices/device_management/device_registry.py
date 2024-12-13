@@ -201,11 +201,12 @@ def callback(ch, method, properties, body):
         this_hb_dur = data.get('heartbeat_duration')
         if this_hb_dur:
             return int(this_hb_dur)
-        return None
+        return 10
 
     # Check if the MAC address in the message matches this device's MAC address
     if getMACAddress(decoded_message) == MAC_address:
         print("Message with matching MAC address received, stopping consumer...")
+        print(f"{decoded_message}")
         stop_condition_met = True  # Set the flag to stop consuming messages
 
         device_id = getDeviceID(decoded_message)

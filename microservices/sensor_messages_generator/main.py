@@ -349,7 +349,7 @@ class SensorDataMessage:
         return self._num_of_sensors == len(self._sensors_data_dict)
 
     def getCurrentLocation(self):
-        return 0, 0, 0
+        return 21.0065195, 105.8429568, 15.000000
 
     def createMessage(self):
         """

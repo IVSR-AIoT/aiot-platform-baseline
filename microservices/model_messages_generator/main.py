@@ -308,7 +308,7 @@ class ObjectDataMessage:
         self._upload_result = True
 
     def getCurretLocation(self):
-        return 0, 0, 0
+        return 21.0065195, 105.8429568, 15.000000
 
     def createLocationObjectDict(self, lat: str, lon: str, alt: str):
         """
