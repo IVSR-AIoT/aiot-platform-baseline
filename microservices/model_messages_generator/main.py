@@ -11,7 +11,7 @@ from lib import ftp
 
 DOTENV_FILE_PATH = '.env'
 MAX_FILE_SIZE_IN_MB = 10
-IMAGE_FILE_EXTENSION = '.png'
+IMAGE_FILE_EXTENSION = '.jpg'
 
 HUMAN_OBJECT_TEMPLATE_DICT = {
     "type": "Human",
@@ -148,13 +148,13 @@ def getDataRedis():
     except Exception as e:
         model_description = 'nil'
 
-    try:
-        minio_bucket = str(redis_client.get('MINIO_BUCKET')).decode('utf-8')
-    except Exception as e:
-        minio_bucket = 'nil'
+    # try:
+    #     minio_bucket = str(redis_client.get('MINIO_BUCKET')).decode('utf-8')
+    # except Exception as e:
+    #     minio_bucket = 'nil'
 
     try:
-        device_id = str(redis_client.get('DEVICE_ID')).decode('utf-8')
+        device_id = str(redis_client.get('DEVICE_ID').decode('utf-8'))
         minio_file_destination_directory = minio_file_destination_directory + '/' + device_id
     except Exception as e:
         device_id = ''
@@ -214,15 +214,18 @@ class RabbitMQClient:
             object_data_message = ObjectDataMessage(
                 raw_obj_msg_list=raw_object_list)
             message_str = object_data_message.createMessage()
-            result = self.objectPublish(message=message_str)
+            if object_data_message._upload_result:
+                result = self.objectPublish(message=message_str)
+            else:
+                ch.basic_ack(delivery_tag=method.delivery_tag)
+                return
 
             if result and object_data_message._upload_result:
                 for obj in object_data_message._raw_object_list:
                     ts = obj.timestamp
                     path = local_image_directory + '/' + ts + IMAGE_FILE_EXTENSION
                     os.remove(path=path)
-                    print(path)
-                ch.basic_ack(delivery_tag=method.delivery_tag)
+            ch.basic_ack(delivery_tag=method.delivery_tag)
 
         self.model_channel.basic_consume(
             queue=self.model_queue, on_message_callback=callback, auto_ack=False)
@@ -346,8 +349,9 @@ class ObjectDataMessage:
         return specs
 
     def uploadImage(self, image_path: str) -> bool:
-        # return True
-        des = minio_file_destination_directory + '/' + image_path
+
+        des = minio_file_destination_directory + \
+            '/' + os.path.basename(image_path)
         self._upload_result = self._file_transfer_handler.uploadFile(
             file_path=image_path, destination=des)
 
@@ -389,7 +393,7 @@ class ObjectDataMessage:
                 continue
 
             object["image_URL"] = minio_start_url + '/' + minio_bucket + '/' + \
-                minio_file_destination_directory + '%2F' + \
+                minio_file_destination_directory + '/' + \
                 raw_object.timestamp + IMAGE_FILE_EXTENSION
 
             if (raw_object.object_type == "Human"):

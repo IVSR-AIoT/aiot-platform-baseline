@@ -41,7 +41,7 @@ class FileTransferHandler:
 
     def uploadFile(self, file_path: str, destination: str) -> bool:
         if not fileCheck(file_path, max_size_mb=self.max_file_size_mb):
-            print("[ERROR]: File check failed: {}", file_path)
+            print(f"[ERROR]: File check failed: {file_path}")
             return False
 
         # result = aws.singleFileUpload(self.bucket, file_path, destination)
