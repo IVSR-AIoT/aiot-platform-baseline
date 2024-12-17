@@ -14,13 +14,13 @@ MAX_FILE_SIZE_IN_MB = 10
 IMAGE_FILE_EXTENSION = '.jpg'
 
 HUMAN_OBJECT_TEMPLATE_DICT = {
-    "type": "Human",
+    "type": "human",
     "age": int,
     "gender": str
 }
 
 VEHICLE_OBJECT_TEMPLATE_DICT = {
-    "type": "Vehicle",
+    "type": "vehicle",
     "category": str,
     "brand": str,
     "color": str,

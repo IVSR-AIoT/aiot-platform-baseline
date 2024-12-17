@@ -129,7 +129,7 @@ class MessageHandler:
 
         payload_dict["external_messages"] = external_message_list
 
-        return message
+        return json.dumps(message, indent=4)
 
 
 class CloudAMQPCLient:
@@ -191,13 +191,12 @@ class LocalRabbitMQClient:
             try:
                 raw_message = body.decode()
                 object_message_dict = json.loads(raw_message)
-                print(object_message_dict)
                 message_handler = MessageHandler(object_message_dict)
                 self.cloud_amqp_client.messagePublish(
                     message=raw_message)
                 self.cloud_amqp_client.messagePublish(
                     message=message_handler.getMessage())
-                print(f"{raw_message}\n{message_handler.getMessage()}\n\n")
+                print(f"{message_handler.getMessage()}")
 
             except Exception as e:
                 print(f"[Ex]: {e}")
