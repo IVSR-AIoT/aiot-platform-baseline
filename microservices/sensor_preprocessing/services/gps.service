@@ -1,0 +1,17 @@
+[Unit]
+Description=GPS Data Publisher Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/home/orangepi/aiot-platform-baseline/microservices/sensor_preprocessing/build/gps
+Restart=always
+RestartSec=5s
+User=root
+Group=root
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -40,6 +40,7 @@
     sudo cp pms5003.service /etc/systemd/system/
     sudo cp guva_s12sd.service /etc/systemd/system/
     sudo cp scd41.service /etc/systemd/system/
+    sudo cp gps.service /etc/systemd/system/
 
     sudo systemctl daemon-reload
     
@@ -49,6 +50,8 @@
     sudo systemctl start scd41.service
     sudo systemctl enable pms5003.service
     sudo systemctl start pms5003.service
+    sudo systemctl enable gps.service
+    sudo systemctl start gps.service
     ```
 
 3. If you gonna change the source code, reload serice:
@@ -56,5 +59,6 @@
     sudo systemctl daemon-reload && \
     sudo systemctl restart guva_s12sd.service && \
     sudo systemctl restart scd41.service && \
-    sudo systemctl restart pms5003.service
+    sudo systemctl restart pms5003.service && \
+    sudo systemctl restart gps.service
     ```
