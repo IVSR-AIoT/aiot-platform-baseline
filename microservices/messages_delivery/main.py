@@ -4,7 +4,6 @@ import redis
 from dotenv import load_dotenv
 import os
 import copy
-import sys
 from enum import Enum
 
 DOTENV_FILE_PATH = '.env'
