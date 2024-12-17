@@ -53,6 +53,9 @@ set(PMS_SOURCES
 set(SCD_SOURCES
     src/scd41.cpp
 )
+set(GPS_SOURCES
+    src/gps.cpp
+)
 
 # Add executable
 add_executable(guva_publisher ${GUVA_SOURCES})
@@ -89,6 +92,20 @@ target_include_directories(scd_publisher PRIVATE
     ${JSONCPP_INCLUDE_DIRS}
 )
 target_link_libraries(scd_publisher
+    ${PAHO_MQTT_CPP_LIB}
+    ${PAHO_MQTT_C_LIB}
+    ${JSONCPP_LIBRARIES}
+    pthread
+    rt
+)
+
+# Add executable
+add_executable(gps ${SCD_SOURCES})
+target_include_directories(gps PRIVATE
+    ${PAHO_MQTT_CPP_INCLUDE_DIR}
+    ${JSONCPP_INCLUDE_DIRS}
+)
+target_link_libraries(gps
     ${PAHO_MQTT_CPP_LIB}
     ${PAHO_MQTT_C_LIB}
     ${JSONCPP_LIBRARIES}
