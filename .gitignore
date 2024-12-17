@@ -1,5 +1,10 @@
 managed_context/
 test_suite_analysis/
+test/
 **/__pycache__
 **/temp/
 **/build/
+**/jsoncpp/
+**/paho.mqtt.c/
+**/paho.mqtt.cpp/
+**/credentials.json

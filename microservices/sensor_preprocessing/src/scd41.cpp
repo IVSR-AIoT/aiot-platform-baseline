@@ -363,11 +363,17 @@ private:
 Json::Value SCDPublisher::createPayload()
 {
     Json::Value payload_json;
+    // Populate the payload data
     payload_json["co2"] = this->co2;
     payload_json["temperature"] = this->temperature;
     payload_json["humidity"] = this->humidity;
 
-    return payload_json;
+    // Create the full message with type and payload
+    Json::Value message_json;
+    message_json["type"] = "co2";           // Set the type, e.g., "co2" for CO2 sensor
+    message_json["payload"] = payload_json; // Add the payload
+
+    return message_json;
 }
 
 /************************************************/

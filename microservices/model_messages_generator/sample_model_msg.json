@@ -1,0 +1,11 @@
+{
+    "object_id": "0",
+    "timestamp": "2024-11-25T15:30:12.123456",
+    "object_type": "Human",
+    "bounding_box": [
+        1,
+        2,
+        3,
+        4
+    ]
+}

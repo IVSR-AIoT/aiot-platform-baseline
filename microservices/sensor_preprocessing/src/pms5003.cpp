@@ -392,11 +392,17 @@ private:
 Json::Value PMSPublisher::createPayload()
 {
     Json::Value payload_json;
+    // Populate the payload data
     payload_json["pm1"] = this->pm1;
     payload_json["pm25"] = this->pm25;
     payload_json["pm10"] = this->pm10;
 
-    return payload_json;
+    // Create the full message with type and payload
+    Json::Value message_json;
+    message_json["type"] = "pm";            // Set the type, e.g., "pm" for particulate matter sensor
+    message_json["payload"] = payload_json; // Add the payload
+
+    return message_json;
 }
 
 /**********************************************/
