@@ -1,5 +1,5 @@
 [Unit]
-Description=SCD41 Sensor Data Publisher Service
+Description=GPS Data Publisher Service
 After=network-online.target
 Wants=network-online.target
 
