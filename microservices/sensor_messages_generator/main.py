@@ -83,12 +83,16 @@ def getDataRedis():
     try:
         location_id = str(redis_client.get("LOCATION_ID")).zfill(4)
     except Exception as e:
-        location_id = str(int(-1))
+        location_id = "0000"
 
     try:
         location_description = str(redis_client.get("LOCATION_DESCRIPTION"))
     except Exception as e:
-        location_description = "nil"
+        location_description = "Test: Room C7-E722"
+
+    if location_id == "None" or location_description == "None":
+        location_id = "0000"
+        location_description = "Test: Room C7-E722"
 
 
 getDataRedis()  # Get LOCATION_ID, LOCATION_DESCRIPTION from redis db
@@ -322,6 +326,7 @@ class SensorDataFactory:
 
 
 class SensorDataMessage:
+    global redis_host, redis_port, redis_db
     global location_id, location_description
     global message_count
 
@@ -331,6 +336,8 @@ class SensorDataMessage:
         self._message_template_dict = copy.deepcopy(
             SENSOR_DATA_MESSAGE_TEMPLATE_DICT)
         self._count = 0
+        self._redis_client = redis.Redis(
+            host=redis_host, port=redis_port, db=redis_db)
 
     def appendSensor(self, sensor: SensorData):
         """
@@ -349,7 +356,18 @@ class SensorDataMessage:
         return self._num_of_sensors == len(self._sensors_data_dict)
 
     def getCurrentLocation(self):
-        return 21.0065195, 105.8429568, 15.000000
+        try:
+            latitude = float(self._redis_client.get(
+                "LOCATION_LAT") or 21.0065195)
+            longitude = float(self._redis_client.get(
+                "LOCATION_LON") or 105.8429568)
+            altitude = float(self._redis_client.get(
+                "LOCATION_ALT") or 15.0000000)
+        except Exception as e:
+            print(f"[ERR]: Failed to fetch Location data from Redis: {e}")
+            latitude, longitude, altitude = 21.0065195, 105.8429568, 15.000000
+
+        return latitude, longitude, altitude
 
     def createMessage(self):
         """
@@ -556,6 +574,9 @@ class MQTTClient:
         try:
             msg_dict = json.loads(msg_str)
         except json.JSONDecodeError as e:
+            return
+
+        if msg_dict["type"] == 'gps':
             return
 
         sensor = SensorDataFactory.from_dict(msg_dict)

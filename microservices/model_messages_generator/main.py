@@ -121,16 +121,14 @@ def getDataRedis():
         host=redis_host, port=redis_port, db=redis_db)
 
     try:
-        location_id = str(redis_client.get(
-            "LOCATION_ID").decode('utf-8')).zfill(4)
+        location_id = str(redis_client.get("LOCATION_ID")).zfill(4)
     except Exception as e:
-        location_id = str(int(-1))
+        location_id = "0000"
 
     try:
-        location_description = str(redis_client.get(
-            "LOCATION_DESCRIPTION").decode('utf-8'))
+        location_description = str(redis_client.get("LOCATION_DESCRIPTION"))
     except Exception as e:
-        location_description = "nil"
+        location_description = "Test: Room C7-E722"
 
     try:
         camera_id = str(redis_client.get("CAMERA_ID").decode('utf-8')).zfill(4)
@@ -158,6 +156,10 @@ def getDataRedis():
         minio_file_destination_directory = minio_file_destination_directory + '/' + device_id
     except Exception as e:
         device_id = ''
+
+    if location_id == "None" or location_description == "None":
+        location_id = "0000"
+        location_description = "Test: Room C7-E722"
 
 
 getDataRedis()  # Get LOCATION_ID, LOCATION_DESCRIPTION from redis db
@@ -290,6 +292,7 @@ class ObjectDataMessage:
     global location_id, location_description
     global minio_bucket, minio_file_destination_directory, minio_start_url, minio_credentials_file_path
     global message_count, local_image_directory
+    global redis_host, redis_port, redis_db
 
     def __init__(self, raw_obj_msg_list: list = [], raw_evn_msg_list: list = []):
         self._num_of_objects = len(raw_obj_msg_list)
@@ -305,10 +308,24 @@ class ObjectDataMessage:
         self._file_transfer_handler = ftp.FileTransferHandler(
             bucket=minio_bucket, max_size_mb=MAX_FILE_SIZE_IN_MB, json_credentials_file=minio_credentials_file_path)
 
+        self._redis_client = redis.Redis(
+            host=redis_host, port=redis_port, db=redis_db)
+
         self._upload_result = True
 
-    def getCurretLocation(self):
-        return 21.0065195, 105.8429568, 15.000000
+    def getCurrentLocation(self):
+        try:
+            latitude = float(self._redis_client.get(
+                "LOCATION_LAT") or 21.0065195)
+            longitude = float(self._redis_client.get(
+                "LOCATION_LON") or 105.8429568)
+            altitude = float(self._redis_client.get(
+                "LOCATION_ALT") or 15.0000000)
+        except Exception as e:
+            print(f"[ERR]: Failed to fetch Location data from Redis: {e}")
+            latitude, longitude, altitude = 21.0065195, 105.8429568, 15.000000
+
+        return latitude, longitude, altitude
 
     def createLocationObjectDict(self, lat: str, lon: str, alt: str):
         """
