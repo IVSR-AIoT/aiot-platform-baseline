@@ -237,7 +237,7 @@ bool check_gps_status(int fd) {
 
 int main() {
     // Read configuration from gps.json file
-    Json::Value config = read_config("../gps.json");
+    Json::Value config = read_config("/home/orangepi/aiot-platform-baseline/microservices/sensor_preprocessing/gps.json");
 
     // Declare variables to store configuration
     string SERVER_ADDRESS, CLIENT_ID, TOPIC, gps_serial_port;
