@@ -100,7 +100,7 @@ target_link_libraries(scd_publisher
 )
 
 # Add executable
-add_executable(gps ${SCD_SOURCES})
+add_executable(gps ${GPS_SOURCES})
 target_include_directories(gps PRIVATE
     ${PAHO_MQTT_CPP_INCLUDE_DIR}
     ${JSONCPP_INCLUDE_DIRS}
