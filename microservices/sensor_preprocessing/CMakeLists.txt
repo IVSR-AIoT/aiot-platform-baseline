@@ -56,6 +56,9 @@ set(SCD_SOURCES
 set(GPS_SOURCES
     src/gps.cpp
 )
+set(LTR_SOURCES
+    src/ltr390.cpp
+)
 
 # Add executable
 add_executable(guva_publisher ${GUVA_SOURCES})
@@ -106,6 +109,20 @@ target_include_directories(gps PRIVATE
     ${JSONCPP_INCLUDE_DIRS}
 )
 target_link_libraries(gps
+    ${PAHO_MQTT_CPP_LIB}
+    ${PAHO_MQTT_C_LIB}
+    ${JSONCPP_LIBRARIES}
+    pthread
+    rt
+)
+
+# Add executable
+add_executable(ltr_publisher ${LTR_SOURCES})
+target_include_directories(ltr_publisher PRIVATE
+    ${PAHO_MQTT_CPP_INCLUDE_DIR}
+    ${JSONCPP_INCLUDE_DIRS}
+)
+target_link_libraries(ltr_publisher
     ${PAHO_MQTT_CPP_LIB}
     ${PAHO_MQTT_C_LIB}
     ${JSONCPP_LIBRARIES}

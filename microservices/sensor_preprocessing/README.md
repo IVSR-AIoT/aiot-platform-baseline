@@ -38,26 +38,29 @@
     ```
     cd services
     sudo cp pms5003.service /etc/systemd/system/
-    sudo cp guva_s12sd.service /etc/systemd/system/
+    sudo cp guva_s12sd.service /etc/systemd/system/ # Currently unused
     sudo cp scd41.service /etc/systemd/system/
     sudo cp gps.service /etc/systemd/system/
+    sudo cp ltr390.service /etc/systemd/system/
 
     sudo systemctl daemon-reload
     
-    sudo systemctl enable guva_s12sd.service
-    sudo systemctl start guva_s12sd.service
+    sudo systemctl enable guva_s12sd.service # Currently unused
+    sudo systemctl start guva_s12sd.service # Currently unused
     sudo systemctl enable scd41.service 
     sudo systemctl start scd41.service
     sudo systemctl enable pms5003.service
     sudo systemctl start pms5003.service
     sudo systemctl enable gps.service
     sudo systemctl start gps.service
+    sudo systemctl enable ltr390.service
+    sudo systemctl start ltr390.service   
     ```
 
 3. If you gonna change the source code, reload serice:
     ```
     sudo systemctl daemon-reload && \
-    sudo systemctl restart guva_s12sd.service && \
+    sudo systemctl restart guva_s12sd.service && \ # Currently unused
     sudo systemctl restart scd41.service && \
     sudo systemctl restart pms5003.service && \
     sudo systemctl restart gps.service
