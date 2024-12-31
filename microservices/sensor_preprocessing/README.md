@@ -60,8 +60,8 @@
 3. If you gonna change the source code, reload serice:
     ```
     sudo systemctl daemon-reload && \
-    sudo systemctl restart guva_s12sd.service && \ # Currently unused
     sudo systemctl restart scd41.service && \
     sudo systemctl restart pms5003.service && \
-    sudo systemctl restart gps.service
+    sudo systemctl restart gps.service && \
+    sudo systemctl restart ltr390.service
     ```

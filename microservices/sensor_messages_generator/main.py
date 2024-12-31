@@ -233,6 +233,57 @@ class UVSensorData(SensorData):
         return result
 
 
+# class UVSensorData(SensorData):
+#     '''
+#     Represents UV sensor data (GUVA-S12D sensor).
+#     '''
+
+#     def __init__(self, data={}, name="name", description="description"):
+#         super().__init__(data)
+#         self.raw_value = data.get("raw_value", 0)
+#         self.uv_intensity = data.get("uv_intensity", 0.0)
+#         self.voltage = data.get("voltage", 0.0)
+#         self.name = name
+#         self.description = description
+#         self.num_values = 3
+
+#     def __str__(self):
+#         return f"UVSensorData(raw_value={self.raw_value}, uv_intensity={self.uv_intensity}, voltage={self.voltage})"
+
+#     def complete(self):
+#         self.name = "GUVA-S12SD sensor"
+#         self.description = "GUVA-S12SD sensor: UV intensity with voltage and raw digital value"
+
+#     def getValuesList(self, start_id: int) -> list:
+
+#         intensity_dict = copy.deepcopy(SENSOR_OBJECT_TEMPLATE_DICT)
+#         intensity_dict["id"] = str(start_id).zfill(4)
+#         intensity_dict["name"] = str(self.name + SUB_ADD + "uv intensity")
+#         intensity_dict["description"] = str(
+#             self.description + SUB_ADD + "uv intensity")
+#         intensity_dict["unit"] = "mW/cm2"
+#         intensity_dict["payload"] = self.uv_intensity
+
+#         raw_value_dict = copy.deepcopy(SENSOR_OBJECT_TEMPLATE_DICT)
+#         raw_value_dict["id"] = str(start_id + 1).zfill(4)
+#         raw_value_dict["name"] = str(self.name + SUB_ADD + "raw digital value")
+#         raw_value_dict["description"] = str(
+#             self.description + SUB_ADD + "digital raw value")
+#         raw_value_dict["unit"] = ""
+#         raw_value_dict["payload"] = self.raw_value
+
+#         voltage_dict = copy.deepcopy(SENSOR_OBJECT_TEMPLATE_DICT)
+#         voltage_dict["id"] = str(start_id + 2).zfill(4)
+#         voltage_dict["name"] = str(self.name + SUB_ADD + "voltage")
+#         voltage_dict["description"] = str(
+#             self.description + SUB_ADD + "voltage")
+#         voltage_dict["unit"] = "volt"
+#         voltage_dict["payload"] = self.voltage
+
+#         result = [intensity_dict, raw_value_dict, voltage_dict]
+#         return result
+
+
 class CO2SensorData(SensorData):
     '''
     Represents CO2 sensor data.
