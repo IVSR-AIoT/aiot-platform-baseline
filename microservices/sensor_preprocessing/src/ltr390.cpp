@@ -9,7 +9,6 @@
 #include <cstring>
 #include <chrono>
 #include <thread>
-
 #include <json/json.h>
 #include <mqtt/async_client.h>
 
@@ -17,9 +16,31 @@ const std::string SERVER_ADDRESS{"tcp://localhost:1883"};
 const std::string CLIENT_ID{"ltr390_publisher"};
 const std::string TOPIC{"/ltr390"};
 
-const std::string i2c_bus = "/dev/i2c-3";
-const int ltr390_address = 0x53; // I2C address of the LTR390 sensor
+// I2C configuration
+const std::string I2C_BUS = "/dev/i2c-3"; // I2C bus on Orange Pi Zero 3
+const int LTR390_ADDRESS = 0x53;          // I2C address of the LTR390-UV-01 sensor
 
+// Register addresses for LTR390
+constexpr uint8_t REG_MAIN_CTRL = 0x00;   // Main Control Register
+constexpr uint8_t REG_MEAS_RATE = 0x04;   // Measurement Rate Register
+constexpr uint8_t REG_GAIN = 0x05;        // Gain Register
+constexpr uint8_t REG_PART_ID = 0x06;     // Part ID Register
+constexpr uint8_t REG_MAIN_STATUS = 0x07; // Main Status Register
+constexpr uint8_t REG_UVS_DATA = 0x10;    // UVS Data Register (3 bytes)
+
+// Control values
+constexpr uint8_t MAIN_CTRL_ENABLE = 0x02;   // Enable sensor
+constexpr uint8_t MAIN_CTRL_UVS_MODE = 0x08; // UVS Mode
+constexpr double UV_SENSITIVITY = 2300.0;    // Sensor sensitivity (counts/UVI)
+constexpr double WFAC = 1.0;                 // Window Factor
+
+// Utility function to calculate UV Index from raw data
+double calculate_uv_index(uint32_t raw_uv)
+{
+    return raw_uv / (UV_SENSITIVITY * WFAC);
+}
+
+// I2CDevice Class Definition
 class I2CDevice
 {
 public:
@@ -112,36 +133,127 @@ private:
     }
 };
 
+// LTR390 Class Definition
 class LTR390
 {
 public:
+    /**
+     * Constructs an LTR390 object with the provided I2CDevice.
+     *
+     * @param i2c_device Reference to an initialized I2CDevice.
+     */
     explicit LTR390(I2CDevice &i2c_device)
-        : i2c(i2c_device) {}
+        : i2c(i2c_device)
+    {
+    }
 
     /**
-     * Reads UV measurements from the LTR390 sensor.
+     * Initializes the LTR390 sensor by configuring necessary registers.
      *
-     * Sends a read command to the sensor, waits for data processing, and parses the received buffer
-     * to extract UV values. Updates the provided references with the results.
-     *
-     * @param uv Reference to store the UV measurement.
+     * @throws std::runtime_error if initialization fails.
      */
-    void readMeasurement(uint16_t &uv)
+    void init()
     {
-        uint8_t read_command[] = {0x0D};
-        uint8_t buffer[2];
+        // Check sensor ID
+        uint8_t id = readRegister(REG_PART_ID);
+        std::cout << "Sensor ID: 0x" << std::hex << static_cast<int>(id) << std::dec << std::endl;
 
-        i2c.writeCommand(read_command, sizeof(read_command));
+        if (id != 0xB2)
+        { // Validate sensor ID
+            throw std::runtime_error("Invalid sensor ID. Expected 0xB2.");
+        }
 
-        // Wait for the sensor to process the command and provide data
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        i2c.readData(buffer, sizeof(buffer));
+        // Enable sensor in UVS mode
+        writeRegister(REG_MAIN_CTRL, MAIN_CTRL_ENABLE | MAIN_CTRL_UVS_MODE);
 
-        uv = (static_cast<uint16_t>(buffer[0]) << 8) | buffer[1];
+        // Configure measurement rate (e.g., 100ms)
+        writeRegister(REG_MEAS_RATE, 0x20); // 0x20 corresponds to a specific rate
+
+        // Configure gain (e.g., Gain = 3)
+        writeRegister(REG_GAIN, 0x02); // Gain value as per datasheet
+
+        std::cout << "Sensor initialized successfully. Waiting for data..." << std::endl;
+    }
+
+    /**
+     * Reads the UV index from the sensor.
+     *
+     * @return The calculated UV index.
+     * @throws std::runtime_error if reading data fails.
+     */
+    double readUV()
+    {
+        uint8_t status = readRegister(REG_MAIN_STATUS);
+
+        if (status & 0x08)
+        { // Check if UVS data is ready
+            uint8_t data[3];
+            readUVSData(data);
+
+            // Combine the 3 bytes into a single 32-bit raw UV value
+            uint32_t raw_uv = (static_cast<uint32_t>(data[2]) << 16) |
+                              (static_cast<uint32_t>(data[1]) << 8) |
+                              static_cast<uint32_t>(data[0]);
+
+            // Calculate UV Index
+            double uv_index = calculate_uv_index(raw_uv);
+
+            return uv_index;
+        }
+
+        // If data not ready, return -1 or handle accordingly
+        return -1.0;
     }
 
 private:
     I2CDevice &i2c;
+
+    /**
+     * Writes a single byte to a specified register.
+     *
+     * @param reg Register address.
+     * @param value Value to write.
+     * @throws std::runtime_error if the write operation fails.
+     */
+    void writeRegister(uint8_t reg, uint8_t value)
+    {
+        uint8_t buffer[2] = {reg, value};
+        i2c.writeCommand(buffer, 2);
+    }
+
+    /**
+     * Reads a single byte from a specified register.
+     *
+     * @param reg Register address.
+     * @return The byte read from the register.
+     * @throws std::runtime_error if the read operation fails.
+     */
+    uint8_t readRegister(uint8_t reg)
+    {
+        // Write the register address
+        i2c.writeCommand(&reg, 1);
+
+        // Read one byte of data
+        uint8_t data;
+        i2c.readData(&data, 1);
+        return data;
+    }
+
+    /**
+     * Reads 3 bytes of UVS data from the sensor.
+     *
+     * @param data Pointer to a 3-byte buffer where the data will be stored.
+     * @throws std::runtime_error if the read operation fails.
+     */
+    void readUVSData(uint8_t *data)
+    {
+        // Write the starting register address
+        uint8_t reg = REG_UVS_DATA;
+        i2c.writeCommand(&reg, 1);
+
+        // Read 3 bytes of UVS data
+        i2c.readData(data, 3);
+    }
 };
 
 class MQTTPublisher
@@ -285,7 +397,7 @@ public:
      * Update UV intensity of the LTRPublisher
      *
      */
-    void update(int16_t _uv)
+    void update(double _uv)
     {
         this->uv = _uv;
     }
@@ -299,7 +411,7 @@ protected:
     virtual Json::Value createPayload() override;
 
 private:
-    int16_t uv;
+    double uv;
 };
 
 Json::Value LTRPublisher::createPayload()
@@ -338,16 +450,12 @@ int main()
 
     try
     {
-        I2CDevice i2c_device(i2c_bus, ltr390_address);
+        I2CDevice i2c_device(I2C_BUS, LTR390_ADDRESS);
         LTR390 ltr390_sensor(i2c_device);
 
         while (true)
         {
-
-            std::this_thread::sleep_for(std::chrono::seconds(5));
-
-            uint16_t uv;
-            ltr390_sensor.readMeasurement(uv);
+            double uv = ltr390_sensor.readUV();
 
             publisher.update(uv);
 
