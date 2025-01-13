@@ -201,6 +201,7 @@ public:
             return uv_index;
         }
 
+        // std::this_thread::sleep_for(std::chrono::seconds(0.1));
         // If data not ready, return -1 or handle accordingly
         return -1.0;
     }
@@ -456,6 +457,11 @@ int main()
         while (true)
         {
             double uv = ltr390_sensor.readUV();
+
+            if (uv < 0.0)
+            {
+                std::cout << "UV data not ready yet." << std::endl;
+            }
 
             publisher.update(uv);
 

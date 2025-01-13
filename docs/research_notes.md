@@ -30,7 +30,7 @@ sudo systemctl enable ovenmediaengine # Enable OME to start on boot
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 -keyout ./ssl.key \
 -out ./ssl.crt \
-subj "/C=VN/ST=HN/L=HUST/O=IVSR/OU=C7/CN=192.168.0.112"
+subj "/C=VN/ST=HN/L=HUST/O=IVSR/OU=C7/CN=192.168.1.112"
 ```
    1. Config file location on server: ```/usr/share/ovenmediaengine/conf/Server.xml```
    2. Using RTSP input from IP camera, then output stream is WebRTC:
