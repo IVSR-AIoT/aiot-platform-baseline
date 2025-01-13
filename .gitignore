@@ -8,3 +8,5 @@ test/
 **/paho.mqtt.c/
 **/paho.mqtt.cpp/
 **/credentials.json
+
+**/mqtt_to_influxdb.py

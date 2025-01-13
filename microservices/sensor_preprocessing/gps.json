@@ -1,6 +1,6 @@
 {
     "mqtt": {
-      "server_address": "tcp://192.168.0.201:1883",
+      "server_address": "tcp://192.168.1.201:1883",
       "client_id": "gps_publisher",
       "topic": "/gps"
     },
