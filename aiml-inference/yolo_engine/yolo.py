@@ -2,6 +2,7 @@ from ultralytics import YOLO
 import torch
 import torch_tensorrt
 import time
+import os
 
 import redis
 from . import config
@@ -24,7 +25,8 @@ def export_engine():
 
 def load_engine():
     # Load the exported TensorRT model
-    trt_model = YOLO("yolo_person.engine")
+    path = os.getcwd() + "/yolo_person.engine"
+    trt_model = YOLO(path)
 
     return trt_model
 
