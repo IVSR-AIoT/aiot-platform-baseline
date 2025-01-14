@@ -8,5 +8,9 @@ test/
 **/paho.mqtt.c/
 **/paho.mqtt.cpp/
 **/credentials.json
+**/saved_images
 
 **/mqtt_to_influxdb.py
+**/*.pt
+**/*.pth
+**/*.torchscript
