@@ -25,7 +25,7 @@ def export_engine():
 
 def load_engine():
     # Load the exported TensorRT model
-    path = os.getcwd() + "/yolo_person.engine"
+    path = os.getcwd() + "/yolo_engine/yolo_person.engine"
     trt_model = YOLO(path)
 
     return trt_model
