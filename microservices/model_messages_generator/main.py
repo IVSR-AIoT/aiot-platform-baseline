@@ -445,7 +445,7 @@ class ObjectDataMessage:
         payload_dict["message_id"] = self.createMessageID()
         payload_dict["timestamp"] = self.createTimestamp()
 
-        lat, lon, alt = self.getCurretLocation()
+        lat, lon, alt = self.getCurrentLocation()
         payload_dict["location"] = self.createLocationObjectDict(
             lat=lat, lon=lon, alt=alt)
 
