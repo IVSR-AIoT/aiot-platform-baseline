@@ -267,6 +267,7 @@ class CloudAMQPCLient:
                 routing_key=self.device_queue,
                 body=message
             )
+            print(f"Published: {message}")
             return True
         except Exception as e:
             print(f"[EX] When publish a message to cloud AMQP server: {e}")
@@ -326,20 +327,12 @@ class LocalRabbitMQClient:
                 print(message_type)
 
                 message_handler = MessageHandler(message_dict)
-                # self.cloud_amqp_client.messagePublish(
-                #     message=raw_message)
-                # self.cloud_amqp_client.messagePublish(
-                #     message=message_handler.getMessage())
+                self.cloud_amqp_client.messagePublish(
+                    message=raw_message)
+                self.cloud_amqp_client.messagePublish(
+                    message=message_handler.getMessage())
                 print(
-                    f"Will publish this message (only for debug):\n{message_handler.getMessage()}")
-
-                # object_message_dict = json.loads(raw_message)
-                # message_handler = MessageHandler(object_message_dict)
-                # self.cloud_amqp_client.messagePublish(
-                #     message=raw_message)
-                # self.cloud_amqp_client.messagePublish(
-                #     message=message_handler.getMessage())
-                # print(f"{message_handler.getMessage()}")
+                    f"Will publish this message:\n{message_handler.getMessage()}")
 
             except Exception as e:
                 print(f"[Ex]: {e}")
