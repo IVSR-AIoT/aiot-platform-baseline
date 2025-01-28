@@ -331,8 +331,8 @@ class LocalRabbitMQClient:
                     message=raw_message)
                 self.cloud_amqp_client.messagePublish(
                     message=message_handler.getMessage())
-                print(
-                    f"Will publish this message:\n{message_handler.getMessage()}")
+                # print(
+                #     f"Will publish this message:\n{message_handler.getMessage()}")
 
             except Exception as e:
                 print(f"[Ex]: {e}")
