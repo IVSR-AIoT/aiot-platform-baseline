@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import os
 import copy
 from enum import Enum
+import time
 
 DOTENV_FILE_PATH = '.env'
 
@@ -55,12 +56,31 @@ local_amqp_sensor_queue = os.getenv('LOCAL_AMQP_SENSOR_QUEUE')
 
 cloud_amqp_url = os.getenv('CLOUD_AMQP_URL')
 
+workflow_configuration = {"detection_timer": 10}
+sensor_limit_dict = {}
+
 redis_host = os.getenv('REDIS_HOST')
 redis_port = int(os.getenv('REDIS_PORT'))
 redis_db = os.getenv('REDIS_DB')
 
 device_id = ''
 message_count = 0
+
+
+def getWorkflowConfiguration(redis_client: redis.Redis):
+
+    global workflow_configuration, sensor_limit_dict
+
+    try:
+        workflow_configuration["detection_timer"] = float(
+            redis_client.get('DETECTION_TIMER').decode('utf-8'))
+
+        sensor_limit_str = str(redis_client.get(
+            'SENSOR_LIMIT').decode('utf-8'))
+        sensor_limit_dict = json.loads(sensor_limit_str)
+
+    except Exception as e:
+        print(f"[EX]: When read data from redis db: {e}")
 
 
 def getDataRedis():
@@ -74,11 +94,78 @@ def getDataRedis():
     except Exception as e:
         print(f"[EX]: When read data from redis db: {e}")
 
+    getWorkflowConfiguration(redis_client=redis_client)
+
 
 getDataRedis()
 
 
+class SensorHandler:
+
+    def __init__(self, sensor_limits: dict):
+
+        self._sensor_limits_dict = sensor_limits
+        self._invalid_sensor_list = []
+
+    def processing(self, sensor_data_list: list):
+        for sensor_data in sensor_data_list:
+            sensor_name = str(sensor_data["name"])
+            sensor_value = float(sensor_data["payload"])
+            limit_list_of_this_sensor = self._sensor_limits_dict.get(
+                sensor_name)
+            if limit_list_of_this_sensor is None:
+                continue
+            elif sensor_value < limit_list_of_this_sensor[0] or sensor_value > limit_list_of_this_sensor[1]:
+                self._invalid_sensor_list.append(sensor_name)
+
+    def getInvalidSensorData(self, sensor_data_list: list) -> list:
+
+        self.processing(sensor_data_list=sensor_data_list)
+        return self._invalid_sensor_list
+
+
+class TimerHandler:
+
+    def __init__(self, duration: float):
+        """Initialize with a fixed duration in seconds."""
+
+        self.duration = duration  # Fixed amount of time (in seconds)
+        self.start_time = None
+        self.is_first_time = True  # First time, always True
+
+    def setStartTime(self):
+        """Set the current time as the start time."""
+
+        self.start_time = time.time()
+
+    def hasElapsed(self):
+        """Check if the fixed duration has passed since start time.
+        Resets start time after checking.
+        """
+
+        if (self.is_first_time):
+            self.is_first_time = False
+            self.setStartTime()
+            return True
+
+        if self.start_time is None:
+            raise ValueError(
+                "Start time is not set. Call setStartTime() first.")
+
+        elapsed = time.time() - self.start_time
+
+        if elapsed >= self.duration:
+            # Reset the start time for the next use
+            self.setStartTime()
+            return True
+        else:
+            return False
+
+
 class MessageHandler:
+
+    global workflow_configuration, sensor_limit_dict
+
     def __init__(self, message_dict: dict):
         self._message_dict = message_dict
 
@@ -89,14 +176,33 @@ class MessageHandler:
         self._message_timestamp = self._message_payload["timestamp"]
         self._message_location = self._message_payload["location"]
 
+        self._sensor_handler = SensorHandler(sensor_limits=sensor_limit_dict)
+        self._is_object = False
+        self._is_sensor = False
+
         self._cat = "CAT0"
-        self._payload = "Notification bypass: only detection"
 
-    def objectMessageHandle(self):
-        pass
+    def objectMessageHandle(self) -> str:
 
-    def sensorMessageHandle(self):
-        pass
+        self._is_object = True
+
+        model_specs = self._message_payload["specs"]
+        model_description = model_specs["description"]
+
+        return f"Detection meet the requirements (Model: {model_description})"
+
+    def sensorMessageHandle(self) -> str:
+
+        self._is_sensor = True
+        out_of_range_sensor_data: list = self._sensor_handler.getInvalidSensorData(
+            self._sensor_list)
+
+        if len(out_of_range_sensor_data) == 0:
+            return ""
+
+        msg = "Sensor value exceeds pre-set threshold: " + \
+            str(out_of_range_sensor_data)
+        return msg
 
     def getMessage(self) -> str:
         message = copy.deepcopy(NOTIFICATION_MESSAGE_TEMPLATE_DICT)
@@ -114,12 +220,24 @@ class MessageHandler:
         payload_dict["timestamp"] = self._message_timestamp
         payload_dict["location"] = self._message_location
         payload_dict["CAT"] = self._cat
-        payload_dict["payload"] = self._payload
+
+        if self._message_type == "sensor":
+            self._sensor_list = self._message_payload["sensor_list"]
+            msg_payload = self.sensorMessageHandle()
+            if msg_payload == "":
+                return ""
+            payload_dict["payload"] = msg_payload
+        elif self._message_type == "object":
+            payload_dict["payload"] = self.objectMessageHandle()
 
         external_message_list = []
-        if self._message_type == MessageType.SENSOR.value:
-            return ''
-        elif self._message_type == MessageType.OBJECT.value:
+        if self._is_sensor:
+            sensor_dict = {
+                "type": MessageType.SENSOR.value,
+                "message_id": self._message_id
+            }
+            external_message_list.append(sensor_dict)
+        elif self._is_object:
             object_dict = {
                 "type": MessageType.OBJECT.value,
                 "message_id": self._message_id
@@ -154,6 +272,11 @@ class CloudAMQPCLient:
             print(f"[EX] When publish a message to cloud AMQP server: {e}")
             return False
 
+    def displayMessage(self, message: str) -> bool:
+        if len(message) == 0:
+            return False
+        print(f"Publish this message:\n{message}")
+
 
 class LocalRabbitMQClient:
     def __init__(self, host: str, port: int, vhost: str,
@@ -185,17 +308,38 @@ class LocalRabbitMQClient:
         self.cloud_amqp_client = CloudAMQPCLient(
             amqp_url=cloud_amqp_url, dev_queue=dev_queue)
 
+        self._timer = TimerHandler(
+            duration=workflow_configuration["detection_timer"])
+
     def start(self):
         def callback(ch, method, properties, body):
             try:
                 raw_message = body.decode()
-                object_message_dict = json.loads(raw_message)
-                message_handler = MessageHandler(object_message_dict)
-                self.cloud_amqp_client.messagePublish(
-                    message=raw_message)
-                self.cloud_amqp_client.messagePublish(
-                    message=message_handler.getMessage())
-                print(f"{message_handler.getMessage()}")
+
+                message_dict = json.loads(raw_message)
+                message_type = message_dict["message_type"]
+
+                if message_type == "object":
+                    if not self._timer.hasElapsed():
+                        return
+
+                print(message_type)
+
+                message_handler = MessageHandler(message_dict)
+                # self.cloud_amqp_client.messagePublish(
+                #     message=raw_message)
+                # self.cloud_amqp_client.messagePublish(
+                #     message=message_handler.getMessage())
+                print(
+                    f"Will publish this message (only for debug):\n{message_handler.getMessage()}")
+
+                # object_message_dict = json.loads(raw_message)
+                # message_handler = MessageHandler(object_message_dict)
+                # self.cloud_amqp_client.messagePublish(
+                #     message=raw_message)
+                # self.cloud_amqp_client.messagePublish(
+                #     message=message_handler.getMessage())
+                # print(f"{message_handler.getMessage()}")
 
             except Exception as e:
                 print(f"[Ex]: {e}")

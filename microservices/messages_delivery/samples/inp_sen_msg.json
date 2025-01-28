@@ -1,0 +1,66 @@
+{
+    "message_type": "sensor",
+    "payload": {
+        "message_id": "sen-0000-00000000",
+        "timestamp": "2025-01-21T12:12:06.744830",
+        "location": {
+            "id": "0000",
+            "lat": 21.005384,
+            "lon": 105.84496,
+            "alt": 15.0,
+            "description": "Test: Room C7-E722"
+        },
+        "number_of_sensors": 7,
+        "sensor_list": [
+            {
+                "id": "0000",
+                "name": "LTR-390 sensor: uv index",
+                "description": "LTR-390 sensor: UV index: uv index",
+                "unit": "",
+                "payload": -1.0
+            },
+            {
+                "id": "0001",
+                "name": "PMS5004 sensor: pm1",
+                "description": "PMS5003 sensor: PM 1.0, PM 2.5 and PM 10: pm1",
+                "unit": "ug/m3",
+                "payload": 18
+            },
+            {
+                "id": "0002",
+                "name": "PMS5004 sensor: pm2.5",
+                "description": "PMS5003 sensor: PM 1.0, PM 2.5 and PM 10: pm2.5",
+                "unit": "ug/m3",
+                "payload": 28
+            },
+            {
+                "id": "0003",
+                "name": "PMS5004 sensor: pm10",
+                "description": "PMS5003 sensor: PM 1.0, PM 2.5 and PM 10: pm10",
+                "unit": "ug/m3",
+                "payload": 18
+            },
+            {
+                "id": "0004",
+                "name": "SCD41 sensor: co2",
+                "description": "SCD41 sensor: CO2, temperature and humidity: co2",
+                "unit": "ppm",
+                "payload": 2410
+            },
+            {
+                "id": "0005",
+                "name": "SCD41 sensor: temperature",
+                "description": "SCD41 sensor: CO2, temperature and humidity: temperature",
+                "unit": "degree C",
+                "payload": 25.332717895507812
+            },
+            {
+                "id": "0006",
+                "name": "SCD41 sensor: humidity",
+                "description": "SCD41 sensor: CO2, temperature and humidity: humidity",
+                "unit": "percentage",
+                "payload": 59.45587158203125
+            }
+        ]
+    }
+}

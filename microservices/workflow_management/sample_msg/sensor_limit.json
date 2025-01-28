@@ -1,0 +1,13 @@
+{
+    "message_type": "workflow",
+    "payload": {
+        "type": "sensor_limit",
+        "sensor_list": [
+            {
+                "sensor_id": "0000",
+                "lower_limit": 20.0,
+                "upper_limit": 80.0
+            }
+        ]
+    }
+}

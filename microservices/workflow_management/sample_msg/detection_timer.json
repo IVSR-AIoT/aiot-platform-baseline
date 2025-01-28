@@ -1,0 +1,7 @@
+{
+    "message_type": "workflow",
+    "payload": {
+        "type": "detection_timer",
+        "seconds": 10
+    }
+}
