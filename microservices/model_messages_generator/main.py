@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import os
 import copy
 import sys
+from shapely.geometry import Polygon
 from enum import Enum
 from lib import ftp
 
@@ -109,6 +110,27 @@ message_count = 0
 model_description = ""
 camera_id = ""
 camera_type = ""
+detection_polygon = [tuple]
+use_detection_polygon = True
+
+
+def getWorkflowConfiguration(redis_client: redis.Redis):
+    global detection_polygon, use_detection_polygon
+
+    detection_polygon_str = None
+    try:
+        detection_polygon_str = str(redis_client.get(
+            'DETECTION_POLYGON').decode('utf-8'))
+
+        points_list = json.loads(detection_polygon_str)
+
+        detection_polygon = [(p["x"], p["y"]) for p in points_list]
+        print(f"Detection polygon: {detection_polygon}")
+
+    except Exception as e:
+        print(f"[EX]: When read data from redis db: {e}")
+        print(f"[ERR]: Will not use detection polygon")
+        use_detection_polygon = False
 
 
 def getDataRedis():
@@ -161,11 +183,42 @@ def getDataRedis():
         location_id = "0000"
         location_description = "Test: Room C7-E722"
 
+    getWorkflowConfiguration(redis_client=redis_client)
+
 
 getDataRedis()  # Get LOCATION_ID, LOCATION_DESCRIPTION from redis db
 
 
+def checkOverlap(bbox_coords, detection_points):
+    """
+    Check overlap between a bounding box (given as 4 integers)
+    and a detection polygon.
+
+    :param bbox_coords: list or tuple of 4 ints [x_min, y_min, x_max, y_max].
+    :param detection_points: list of (x, y) tuples (>=3) for polygon corners.
+    :return: True if overlaps/intersects, otherwise False.
+    """
+    # Unpack the bounding box coordinates
+    x_min, y_min, x_max, y_max = bbox_coords
+
+    # Construct the bounding box polygon corners (in order)
+    bbox_polygon = Polygon([
+        (x_min, y_min),
+        (x_max, y_min),
+        (x_max, y_max),
+        (x_min, y_max)
+    ])
+
+    # Construct polygon from the detection points
+    detection_polygon = Polygon(detection_points)
+
+    # Return whether the two polygons intersect
+    return bbox_polygon.intersects(detection_polygon)
+
+
 class RabbitMQClient:
+    global use_detection_polygon
+
     def __init__(self, host: str, port: int, vhost: str,
                  usr: str, pwd: str,
                  model_queue: str, object_queue: str):
@@ -215,6 +268,11 @@ class RabbitMQClient:
             raw_object_list = [raw_object_msg]
             object_data_message = ObjectDataMessage(
                 raw_obj_msg_list=raw_object_list)
+
+            if use_detection_polygon and not object_data_message.anyOverlapObject():
+                ch.basic_ack(delivery_tag=method.delivery_tag)
+                return
+
             message_str = object_data_message.createMessage()
             if object_data_message._upload_result:
                 result = self.objectPublish(message=message_str)
@@ -249,13 +307,15 @@ class RawObject:
     Base class of all object data.
     '''
 
+    global detection_polygon
+
     def __init__(self, timestamp: str = '', id: int = 0, type: str = '', bbox: list = []):
         self.timestamp = timestamp
         self.object_id = id
         self.object_type = type
         self.bounding_box = bbox
         self.version = 'ver.1'
-        pass
+        self.is_overlap = False
 
     # def __str__(self):
     #     return f"Object:{self.data_dict}"
@@ -277,13 +337,16 @@ class RawObject:
             self.object_id = data.get('id', 'default_id')
             self.object_type = data.get('type', 'default_type')
             self.bounding_box = data.get('bbox', [0, 0, 0, 0])
+            self.is_overlap = checkOverlap(
+                bbox_coords=self.bounding_box, detection_points=detection_polygon)
 
         except json.JSONDecodeError as e:
             print(f"Failed to decode model message: {e}", file=sys.stderr)
             self.timestamp = 'default_timestamp'
             self.object_id = 'default_id'
             self.object_type = 'default_type'
-            self.bounding_box = [0, 0, 0, 0]  # Set default bounding box
+            self.bounding_box = [0, 0, 0, 0]
+            self.is_overlap = False
 
         return self  # Ensure that this always returns an object, even if the input is malformed
 
@@ -301,9 +364,13 @@ class ObjectDataMessage:
             OBJECT_MESSAGE_TEMPLATE_DICT)
 
         self._raw_object_list: list[RawObject] = []
+        self._overlap_list: list[bool] = []
         for raw_object_message in raw_obj_msg_list:
-            self._raw_object_list.append(
-                RawObject().load(raw_str=raw_object_message))
+            raw_object = RawObject().load(raw_str=raw_object_message)
+            self._raw_object_list.append(raw_object)
+            self._overlap_list.append(raw_object.is_overlap)
+
+        self._contain_overlap_object = any(self._overlap_list)
 
         self._file_transfer_handler = ftp.FileTransferHandler(
             bucket=minio_bucket, max_size_mb=MAX_FILE_SIZE_IN_MB, json_credentials_file=minio_credentials_file_path)
@@ -312,6 +379,9 @@ class ObjectDataMessage:
             host=redis_host, port=redis_port, db=redis_db)
 
         self._upload_result = True
+
+    def anyOverlapObject(self) -> bool:
+        return self._contain_overlap_object
 
     def getCurrentLocation(self):
         try:
@@ -464,7 +534,6 @@ class ObjectDataMessage:
             return json.dumps(obj=message, indent=4)
         except Exception as e:
             print(f"[ERROR] Exception during json.dumps: {e}", file=sys.stderr)
-            raise
 
 
 if __name__ == "__main__":

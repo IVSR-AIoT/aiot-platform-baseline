@@ -1,38 +1,18 @@
-# from lib import ftp
+import json
+import redis
 
-# file_handler = ftp.FileTransferHandler(
-#     bucket='test', max_size_mb=1024, json_credentials_file='credentials.json')
-# result = file_handler.uploadFile(
-#     file_path='turletbot3_plate.png', destination='')
-# print(result)
+# Example data
+points = [
+  {"x": 73, "y": 131},
+  {"x": 303, "y": 164},
+  {"x": 318, "y": 341},
+  {"x": 95, "y": 314}
+]
 
-# # buckets = file_handler.minio_client.s3_client.list_buckets()
-# # print(buckets)
+r = redis.Redis(host='192.168.1.201', port=6379, db=0)
 
-from minio import Minio
+# Convert Python list of dicts to JSON string
+points_json = json.dumps(points)
 
-client = Minio(endpoint="103.166.183.191:9000",
-               access_key="xR5gSOXjzpruRzF3nhro", secret_key="ZrMs9FQj97SLZgv1Plbj6LcdIzSaQamGkDdpfjtK", secure=False)
-
-source_file = "turletbot3_plate.png"
-
-# The destination bucket and filename on the MinIO server
-bucket_name = "test"
-destination_file = "images/turletbot3_plate.png"
-
-# Make the bucket if it doesn't exist.
-found = client.bucket_exists(bucket_name)
-if not found:
-    client.make_bucket(bucket_name)
-    print("Created bucket", bucket_name)
-else:
-    print("Bucket", bucket_name, "already exists")
-
-# Upload the file, renaming it in the process
-client.fput_object(
-    bucket_name, destination_file, source_file,
-)
-print(
-    source_file, "successfully uploaded as object",
-    destination_file, "to bucket", bucket_name,
-)
+# Store into Redis with a key, e.g. "my_detection_polygon"
+r.set("DETECTION_POLYGON", points_json)
