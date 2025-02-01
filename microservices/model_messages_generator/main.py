@@ -120,7 +120,7 @@ def getWorkflowConfiguration(redis_client: redis.Redis):
     detection_polygon_str = None
     try:
         detection_polygon_str = str(redis_client.get(
-            'DETECTION_POLYGON').decode('utf-8'))
+            'DETECTION_RANGE').decode('utf-8'))
 
         points_list = json.loads(detection_polygon_str)
 
