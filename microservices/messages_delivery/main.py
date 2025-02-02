@@ -6,6 +6,7 @@ import os
 import copy
 from enum import Enum
 import time
+import paho.mqtt.client as mqtt
 
 DOTENV_FILE_PATH = '.env'
 
@@ -63,6 +64,10 @@ redis_host = os.getenv('REDIS_HOST')
 redis_port = int(os.getenv('REDIS_PORT'))
 redis_db = os.getenv('REDIS_DB')
 
+mqtt_broker = os.getenv("MQTT_BROKER", "localhost")
+mqtt_port = int(os.getenv("MQTT_PORT", 1883))
+mqtt_topic = os.getenv("MQTT_TOPIC", "/alert")
+
 device_id = ''
 message_count = 0
 
@@ -98,6 +103,44 @@ def getDataRedis():
 
 
 getDataRedis()
+
+
+class AlertPublisher:
+
+    global mqtt_broker, mqtt_port, mqtt_topic
+
+    def __init__(self):
+        self._client = mqtt.Client()
+        self._client.on_connect = self.on_connect
+        self.connectMQTT()
+
+    def connectMQTT(self):
+        """
+        Connects to the MQTT broker.
+        """
+        print(f"Connecting to MQTT broker at {mqtt_broker}:{mqtt_port}")
+        self._client.connect(mqtt_broker, mqtt_port, 60)
+
+    def on_connect(self, client, userdata, flags, rc):
+        """
+        Callback function when MQTT client connects to broker.
+        """
+        if rc == 0:
+            print("Connected to MQTT Broker!")
+        else:
+            print(f"Failed to connect to MQTT Broker, return code {rc}")
+
+    def publishAlert(self):
+        """
+        Publish a message with payload "1" to the configured MQTT topic.
+        """
+        result = self._client.publish(mqtt_topic, "1")
+        # Optionally, you could check the result here:
+        status = result[0]
+        if status == 0:
+            print(f"Message sent to topic `{mqtt_topic}`")
+        else:
+            print(f"Failed to send message to topic `{mqtt_topic}`")
 
 
 class SensorHandler:
@@ -202,6 +245,10 @@ class MessageHandler:
 
         msg = "Sensor value exceeds pre-set threshold: " + \
             str(out_of_range_sensor_data)
+
+        alert = AlertPublisher()
+        alert.publishAlert()
+
         return msg
 
     def getMessage(self) -> str:
