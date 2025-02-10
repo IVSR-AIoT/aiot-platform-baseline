@@ -6,6 +6,7 @@ import os
 import copy
 from enum import Enum
 import time
+import paho.mqtt.client as mqtt
 
 DOTENV_FILE_PATH = '.env'
 
@@ -57,7 +58,7 @@ local_amqp_sensor_queue = os.getenv('LOCAL_AMQP_SENSOR_QUEUE')
 cloud_amqp_url = os.getenv('CLOUD_AMQP_URL')
 
 workflow_configuration = {"detection_timer": 10}
-sensor_limit_dict = {}
+sensor_limit_list = []
 
 redis_host = os.getenv('REDIS_HOST')
 redis_port = int(os.getenv('REDIS_PORT'))
@@ -79,12 +80,18 @@ def getWorkflowConfiguration(redis_client: redis.Redis):
         workflow_configuration["detection_timer"] = float(
             redis_client.get('detection_timer').decode('utf-8'))
 
+    except Exception as e:
+        print(f"[EX]: When read data from redis db: {e}")
+
+    try:
         sensor_limit_str = str(redis_client.get(
             'sensor_limit').decode('utf-8'))
         sensor_limit_dict = json.loads(sensor_limit_str)
 
     except Exception as e:
         print(f"[EX]: When read data from redis db: {e}")
+
+    print("[INFO]: Sensor Limit: ", sensor_limit_dict)
 
 
 def getDataRedis():
@@ -146,18 +153,21 @@ class SensorHandler:
 
     def __init__(self, sensor_limits: dict):
 
-        self._sensor_limits_dict = sensor_limits
+        self._sensor_limits_dict = {sensor['sensor_name']: (float(
+            sensor['lower_limit']), float(sensor['upper_limit'])) for sensor in sensor_limits}
         self._invalid_sensor_list = []
+
+        print(self._sensor_limits_dict)
 
     def processing(self, sensor_data_list: list):
         for sensor_data in sensor_data_list:
             sensor_name = str(sensor_data["name"])
             sensor_value = float(sensor_data["payload"])
-            limit_list_of_this_sensor = self._sensor_limits_dict.get(
+            limit_tuple_of_this_sensor = self._sensor_limits_dict.get(
                 sensor_name)
-            if limit_list_of_this_sensor is None:
+            if limit_tuple_of_this_sensor is None:
                 continue
-            elif sensor_value < limit_list_of_this_sensor[0] or sensor_value > limit_list_of_this_sensor[1]:
+            elif sensor_value < limit_tuple_of_this_sensor[0] or sensor_value > limit_tuple_of_this_sensor[1]:
                 self._invalid_sensor_list.append(sensor_name)
 
     def getInvalidSensorData(self, sensor_data_list: list) -> list:
@@ -206,7 +216,7 @@ class TimerHandler:
 
 class MessageHandler:
 
-    global workflow_configuration, sensor_limit_dict
+    global workflow_configuration, sensor_limit_list
 
     def __init__(self, message_dict: dict):
         self._message_dict = message_dict
