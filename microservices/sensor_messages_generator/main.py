@@ -604,6 +604,9 @@ class MQTTClient:
         self.messageProcessing(msg_str=msg_payload)
 
     def messageProcessing(self, msg_str: str):
+        if len(msg_str) == 1:
+            return
+
         try:
             msg_dict = json.loads(msg_str)
         except json.JSONDecodeError as e:
