@@ -7,7 +7,7 @@
 #include "mqtt/async_client.h"
 
 // GPIO configuration
-const std::string GPIO_PIN = "6"; // GPIO pin number as a string
+const std::string GPIO_PIN = "198"; // GPIO pin number as a string
 const std::string GPIO_EXPORT = "/sys/class/gpio/export";
 const std::string GPIO_UNEXPORT = "/sys/class/gpio/unexport";
 const std::string GPIO_DIRECTION = "/sys/class/gpio/gpio" + GPIO_PIN + "/direction";
