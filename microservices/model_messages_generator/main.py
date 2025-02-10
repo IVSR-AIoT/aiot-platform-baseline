@@ -110,7 +110,7 @@ message_count = 0
 model_description = ""
 camera_id = ""
 camera_type = ""
-detection_polygon = [tuple]
+detection_polygon = []
 use_detection_polygon = True
 
 
