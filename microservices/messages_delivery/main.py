@@ -78,10 +78,10 @@ def getWorkflowConfiguration(redis_client: redis.Redis):
 
     try:
         workflow_configuration["detection_timer"] = float(
-            redis_client.get('DETECTION_TIMER').decode('utf-8'))
+            redis_client.get('detection_timer').decode('utf-8'))
 
         sensor_limit_str = str(redis_client.get(
-            'SENSOR_LIMIT').decode('utf-8'))
+            'sensor_limit').decode('utf-8'))
         sensor_limit_dict = json.loads(sensor_limit_str)
 
     except Exception as e:
