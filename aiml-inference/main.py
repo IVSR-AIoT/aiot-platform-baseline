@@ -325,9 +325,15 @@ def demo():
 
 
 if __name__ == "__main__":
-    # Check if the folder exists; if so, remove and recreate it
-    if os.path.exists(SAVE_IMAGE_PATH) and os.path.isdir(SAVE_IMAGE_PATH):
-        shutil.rmtree(SAVE_IMAGE_PATH)
-    os.makedirs(SAVE_IMAGE_PATH, exist_ok=True)
+    # Check if the folder exists; if so, remove it's contents
+    for entry in os.listdir(SAVE_IMAGE_PATH):
+        entry_path = os.path.join(SAVE_IMAGE_PATH, entry)
+        try:
+            if os.path.isfile(entry_path) or os.path.islink(entry_path):
+                os.unlink(entry_path)  # Remove file or symlink
+            elif os.path.isdir(entry_path):
+                shutil.rmtree(entry_path)  # Remove directory and its contents
+        except Exception as e:
+            print(f"Failed to delete {entry_path}. Reason: {e}")
 
     demo()
