@@ -6,7 +6,6 @@ import os
 import copy
 from enum import Enum
 import time
-import paho.mqtt.client as mqtt
 
 DOTENV_FILE_PATH = '.env'
 
