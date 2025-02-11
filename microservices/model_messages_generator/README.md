@@ -15,5 +15,6 @@ sudo docker build -t model_messages_generator .
 RUN THIS BEFORE RUN THE AIML INFERENCE
 
 ```
-sudo docker run -d -v /home/ivsr/aiot-platform-baseline/aiml-inference/saved_images:/mnt/images model_messages_generator
+# sudo docker run -d -v /home/ivsr/aiot-platform-baseline/aiml-inference/saved_images:/mnt/images model_messages_generator
+docker run -d -v /mnt/jetson_dir:/mnt/images model_messages_generator
 ```
