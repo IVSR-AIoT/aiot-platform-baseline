@@ -263,7 +263,9 @@ class RabbitMQClient:
             global local_image_directory
 
             raw_object_msg = body.decode()
-            print(f" {raw_object_msg}\n")
+            if raw_object_msg is not None:
+                getDataRedis()
+                print(f" {raw_object_msg}\n")
 
             raw_object_list = [raw_object_msg]
             object_data_message = ObjectDataMessage(

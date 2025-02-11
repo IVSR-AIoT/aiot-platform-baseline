@@ -91,8 +91,6 @@ def getWorkflowConfiguration(redis_client: redis.Redis):
     except Exception as e:
         print(f"[EX]: When read data from redis db: {e}")
 
-    print("[INFO]: Sensor Limit: ", sensor_limit_dict)
-
 
 def getDataRedis():
 
@@ -376,19 +374,19 @@ class LocalRabbitMQClient:
                 message_dict = json.loads(raw_message)
                 message_type = message_dict["message_type"]
 
+                if message_type is not None:
+                    getDataRedis()
+                    print(f"Arrived message: {message_type}")
+
                 if message_type == "object":
                     if not self._timer.hasElapsed():
                         return
-
-                print(message_type)
 
                 message_handler = MessageHandler(message_dict)
                 self.cloud_amqp_client.messagePublish(
                     message=raw_message)
                 self.cloud_amqp_client.messagePublish(
                     message=message_handler.getMessage())
-                # print(
-                #     f"Will publish this message:\n{message_handler.getMessage()}")
 
             except Exception as e:
                 print(f"[Ex]: {e}")
