@@ -175,7 +175,7 @@ def getDataRedis():
 
     try:
         device_id = str(redis_client.get('DEVICE_ID').decode('utf-8'))
-        minio_file_destination_directory = minio_file_destination_directory + '/' + device_id
+        minio_file_destination_directory = os.getenv('MINIO_DESTINATION_DIR') + '/' + device_id
     except Exception as e:
         device_id = ''
 
