@@ -290,6 +290,7 @@ def demo():
         count = 0
 
         while True:
+            getDetectionPolygon()
             batch = processor.get_batch(timeout=1.0)
 
             if batch is None:
