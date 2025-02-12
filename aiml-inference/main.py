@@ -17,6 +17,9 @@ import torch_tensorrt
 from message_broker.rabbitmq import publishMessage
 from yolo_engine.yolo import load_engine
 
+import redis
+import json
+
 
 def create_model():
     """
@@ -47,6 +50,38 @@ NUM_WORKERS = int(os.getenv('NUM_WORKERS', 2))
 DEVICE = os.getenv('DEVICE', 'cuda' if torch.cuda.is_available() else 'cpu')
 PRECISION = os.getenv('PRECISION', 'fp16')
 SAVE_IMAGE_PATH = os.getenv('SAVE_IMAGE_PATH', './saved_images')
+
+REDIS_HOST = os.getenv('REDIS_HOST')
+REDIS_PORT = int(os.getenv('REDIS_PORT'))
+REDIS_DB = os.getenv('REDIS_DB')
+
+detection_polygon = []  # List of tuples
+use_detection_polygon = True
+
+
+def getDetectionPolygon():
+
+    global detection_polygon, use_detection_polygon
+    detection_polygon_str = None
+
+    redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB)
+
+    try:
+        detection_polygon_str = str(redis_client.get(
+            'detection_range').decode('utf-8'))
+
+        points_list = json.loads(detection_polygon_str)
+
+        detection_polygon = [(p["x"], p["y"]) for p in points_list]
+        print(f"Detection polygon: {detection_polygon}")
+
+    except Exception as e:
+        print(f"[EX]: When read data from redis db: {e}")
+        print(f"[ERR]: Will not use detection polygon")
+        use_detection_polygon = False
+
+
+getDetectionPolygon()
 
 # Initialize the AI model
 model = create_model()
@@ -243,6 +278,8 @@ def demo():
     """
     Example usage of FastVideoProcessor with FPS monitoring and AI inference.
     """
+    global use_detection_polygon, detection_polygon
+
     processor = FastVideoProcessor()
     try:
         frames_processed = 0
@@ -295,13 +332,23 @@ def demo():
                             }
                             publishMessage(message)
 
+                        # If detection polygon is enabled, draw it
+                        if use_detection_polygon and detection_polygon:
+                            polygon_points = np.array(
+                                detection_polygon, np.int32)
+                            polygon_points = polygon_points.reshape((-1, 1, 2))
+
+                            # Draw the polygon with dotted lines (red color)
+                            cv2.polylines(output[i].orig_img, [polygon_points],
+                                          isClosed=True, color=(0, 0, 255), thickness=2, lineType=cv2.LINE_AA)
+
                         # Construct the filename with timestamp
                         filename = os.path.join(
                             SAVE_IMAGE_PATH,
                             f"{timestamp}.jpg"
                         )
 
-                        # Save the image with bounding boxes
+                        # Save the image with bounding boxes and detection polygon
                         cv2.imwrite(filename, output[i].orig_img)
                         print("Image saved successfully.")
                     elif count >= 5 and save_time >= 1:
