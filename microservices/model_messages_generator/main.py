@@ -507,7 +507,7 @@ class ObjectDataMessage:
         return msg_id
 
     def createTimestamp(self) -> str:
-        return self._raw_object_list[0].timestamp
+        return datetime.now().isoformat()
 
     def createMessage(self) -> str:
         message = copy.deepcopy(OBJECT_MESSAGE_TEMPLATE_DICT)

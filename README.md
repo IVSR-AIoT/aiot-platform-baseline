@@ -8,6 +8,7 @@
 
     ```bash
     ssh orangepi@192.168.1.201
+    sudo mount 192.168.1.202:/home/ivsr/aiot-platform-baseline/aiml-inference/saved_images /mnt/jetson_dir
     ```
 
 2. Run the following Docker containers:
