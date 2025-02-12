@@ -95,6 +95,8 @@ class CloudAMQPClient:
                 message_type = message_dict["message_type"]
 
                 if message_type != WORKFLOW_MESSAGE_TYPE:
+                    ch.basic_nack(
+                        delivery_tag=method.delivery_tag, requeue=True)
                     return
 
                 message_payload = message_dict["payload"]
@@ -102,10 +104,10 @@ class CloudAMQPClient:
                     message_payload=message_payload, redis_client=self._redis_client)
                 workflow_handler.processing()
 
+                ch.basic_ack(delivery_tag=method.delivery_tag)
+
             except Exception as e:
                 print(f"[Ex]: {e}")
-            finally:
-                ch.basic_ack(delivery_tag=method.delivery_tag)
 
         self._channel.basic_consume(
             queue=self._device_queue, on_message_callback=callback, auto_ack=False
