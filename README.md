@@ -66,3 +66,17 @@
      cd /home/ivsr/aiot-platform-baseline/aiml-inference && \
      python3 main.py
      ```
+
+## Useful commands:
+
+1. **Kill all running containers:**
+  
+  ```bash
+  docker kill $(docker ps -q)
+  ```
+
+2. **Remove all existing images, including their cache for a fresh build:**
+
+  ```bash
+  docker rmi $(docker images -q) --force --no-prune
+  ```
