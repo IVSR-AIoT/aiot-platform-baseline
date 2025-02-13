@@ -53,24 +53,27 @@ class WorkflowHandler:
         elif self._workflow_type == WorkflowType.SENSOR_LIMIT.value:
             self.sensorLimitHandle()
 
-        print(f"Set workflow parameters successfully")
+        print(f"[INFO]: Set workflow parameters successfully")
 
     def detectionRangeHandle(self):
         points = self._message_payload["list_of_setpoint"]
         points_json = json.dumps(points)
         self._redis_client.set(
             name=WorkflowType.DETECTION_RANGE.value, value=points_json)
+        print(f"[INFO]: Detection Polygon: {points_json}")
 
     def detectionTimerHandle(self):
         seconds = float(self._message_payload["seconds"])
         self._redis_client.set(
             name=WorkflowType.DETECTION_TIMER.value, value=seconds)
+        print(f"[INFO]: Detection Timer (seconds): {seconds}")
 
     def sensorLimitHandle(self):
         sensor_limit_list = self._message_payload["sensor_list"]
         sensor_limit_list_str = json.dumps(sensor_limit_list)
         self._redis_client.set(
             name=WorkflowType.SENSOR_LIMIT.value, value=sensor_limit_list_str)
+        print(f"[INFO]: Sensor Limits List: {sensor_limit_list}")
 
 
 class CloudAMQPClient:

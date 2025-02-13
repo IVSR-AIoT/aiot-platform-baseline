@@ -122,7 +122,8 @@ class AlertPublisher:
         """
         Connects to the MQTT broker.
         """
-        print(f"Connecting to MQTT broker at {mqtt_broker}:{mqtt_port}")
+        print(
+            f"[INFO]: Connecting to MQTT broker at {mqtt_broker}:{mqtt_port}")
         self._client.connect(mqtt_broker, mqtt_port, 60)
 
     def on_connect(self, client, userdata, flags, rc):
@@ -130,9 +131,9 @@ class AlertPublisher:
         Callback function when MQTT client connects to broker.
         """
         if rc == 0:
-            print("Connected to MQTT Broker!")
+            print(f"[INFO]: Connected to MQTT Broker!")
         else:
-            print(f"Failed to connect to MQTT Broker, return code {rc}")
+            print(f"[ERR]: Failed to connect to MQTT Broker, return code {rc}")
 
     def publishAlert(self):
         """
@@ -142,9 +143,10 @@ class AlertPublisher:
         # Optionally, you could check the result here:
         status = result[0]
         if status == 0:
-            print(f"Message sent to topic `{mqtt_topic}`")
+            print(f"[INFO]: Alert message sent to topic `{mqtt_topic}`")
         else:
-            print(f"Failed to send message to topic `{mqtt_topic}`")
+            print(
+                f"[ERR]: Failed to send alert message to topic `{mqtt_topic}`")
 
 
 class SensorHandler:
@@ -154,8 +156,6 @@ class SensorHandler:
         self._sensor_limits_dict = {sensor['sensor_name']: (float(
             sensor['lower_limit']), float(sensor['upper_limit'])) for sensor in sensor_limits}
         self._invalid_sensor_list = []
-
-        print(self._sensor_limits_dict)
 
     def processing(self, sensor_data_list: list):
         for sensor_data in sensor_data_list:
@@ -321,16 +321,11 @@ class CloudAMQPCLient:
                 routing_key=self.device_queue,
                 body=message
             )
-            print(f"Published: {message}")
+            print(f"[INFO]: Message published: {message}")
             return True
         except Exception as e:
-            print(f"[EX] When publish a message to cloud AMQP server: {e}")
+            print(f"[ERR]: When publish a message to cloud AMQP server: {e}")
             return False
-
-    def displayMessage(self, message: str) -> bool:
-        if len(message) == 0:
-            return False
-        print(f"Publish this message:\n{message}")
 
 
 class LocalRabbitMQClient:
@@ -376,7 +371,7 @@ class LocalRabbitMQClient:
 
                 if message_type is not None:
                     getDataRedis()
-                    print(f"Arrived message: {message_type}")
+                    print(f"[INFO]: Arrived message: {message_type}")
 
                 if message_type == "object":
                     if not self._timer.hasElapsed():
@@ -389,7 +384,7 @@ class LocalRabbitMQClient:
                     message=message_handler.getMessage())
 
             except Exception as e:
-                print(f"[Ex]: {e}")
+                print(f"[EX]: Exception when processing current message: {e}")
             finally:
                 ch.basic_ack(delivery_tag=method.delivery_tag)
 

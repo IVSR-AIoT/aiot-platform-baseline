@@ -419,6 +419,9 @@ class SensorDataMessage:
         if not self.isFull():
             return False, ''
 
+        print(
+            f"[INFO]: Processing these sensor data: {self._sensors_data_dict}")
+
         message_dict = copy.deepcopy(SENSOR_DATA_MESSAGE_TEMPLATE_DICT)
 
         def createMessageID() -> str:
@@ -521,6 +524,7 @@ class SimpleRabbitMQPublisher:
                 routing_key=self.queue,
                 body=message_body
             )
+            print(f"[INFO]: Sensor Data published: {message_body}")
         except Exception as e:
             print(f'[ERR]: {e}', file=sys.stderr)
             return False
@@ -583,7 +587,7 @@ class MQTTClient:
             flags (dict): Response flags sent by the broker.
         '''
 
-        print(f"Connected with result code {rc}")
+        print(f"[INFO]: Connected with result code {rc}")
         client.subscribe(MQTT_ALL_TOPICS_WILDCARD)
 
     def on_message(self, client, userdata, msg: mqtt.MQTTMessage):

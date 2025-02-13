@@ -125,11 +125,10 @@ def getWorkflowConfiguration(redis_client: redis.Redis):
         points_list = json.loads(detection_polygon_str)
 
         detection_polygon = [(p["x"], p["y"]) for p in points_list]
-        print(f"Detection polygon: {detection_polygon}")
 
     except Exception as e:
         print(f"[EX]: When read data from redis db: {e}")
-        print(f"[ERR]: Will not use detection polygon")
+        print(f"[INFO]: Will not use detection polygon")
         use_detection_polygon = False
 
 
@@ -175,7 +174,8 @@ def getDataRedis():
 
     try:
         device_id = str(redis_client.get('DEVICE_ID').decode('utf-8'))
-        minio_file_destination_directory = os.getenv('MINIO_DESTINATION_DIR') + '/' + device_id
+        minio_file_destination_directory = os.getenv(
+            'MINIO_DESTINATION_DIR') + '/' + device_id
     except Exception as e:
         device_id = ''
 
@@ -253,6 +253,7 @@ class RabbitMQClient:
                 routing_key=self.object_queue,
                 body=message_body
             )
+            print(f"[INFO]: Image(s) uploaded and message published")
         except Exception as e:
             print(f'[ERR]: {e}', file=sys.stderr)
             return False
@@ -265,7 +266,6 @@ class RabbitMQClient:
             raw_object_msg = body.decode()
             if raw_object_msg is not None:
                 getDataRedis()
-                print(f" {raw_object_msg}\n")
 
             raw_object_list = [raw_object_msg]
             object_data_message = ObjectDataMessage(
@@ -295,7 +295,7 @@ class RabbitMQClient:
         try:
             self.model_channel.start_consuming()
         except Exception as e:
-            print(e)
+            print(f"[EX]: Exception while processing: {e}")
             self.close()
 
     def close(self):
@@ -342,8 +342,15 @@ class RawObject:
             self.is_overlap = checkOverlap(
                 bbox_coords=self.bounding_box, detection_points=detection_polygon)
 
+            print(f"[INFO]: Process this object message: {raw_str}:")
+            if self.is_overlap:
+                print(
+                    f"[INFO]: Overlap founded with detection polygon: {detection_polygon}")
+            else:
+                print(f"[INFO]: Overlap not found")
+
         except json.JSONDecodeError as e:
-            print(f"Failed to decode model message: {e}", file=sys.stderr)
+            print(f"[ERR]: Failed to decode model message: {e}", file=sys.stderr)
             self.timestamp = 'default_timestamp'
             self.object_id = 'default_id'
             self.object_type = 'default_type'

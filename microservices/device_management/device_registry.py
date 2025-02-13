@@ -43,6 +43,17 @@ redis_host = os.getenv('REDIS_HOST')
 redis_port = int(os.getenv('REDIS_PORT'))
 redis_db = int(os.getenv('REDIS_DB'))
 
+MAC_address = ''
+
+device_name = os.getenv("NAME")               # Device name
+device_description = os.getenv("DESCRIPTION")  # Device description
+device_id = None
+device_heartbeat_duration = 0
+
+# Control variables
+stop_condition_met = False
+connection = None
+
 
 def updateENV(key: str, value: str) -> None:
     """
@@ -52,29 +63,33 @@ def updateENV(key: str, value: str) -> None:
         key (str): The key to update in the .env file.
         value (str): The value to set for the key.
     """
-    global DOTENV_FILE_PATH
     set_key(dotenv_path=DOTENV_FILE_PATH, key_to_set=key, value_to_set=value)
 
 
-# Retrieve device information from environment variables
-MAC_address = os.getenv('MAC_ADDRESS')
-if MAC_address is None or MAC_address == '':
-    # Generate the MAC address from the UUID if not provided
-    MAC_address = hex(uuid.getnode()).replace('0x', '').upper()
-    MAC_address = ':'.join(MAC_address[i:i+2] for i in range(0, 12, 2))
-print(f"My MAC: {MAC_address}")
-device_name = os.getenv("NAME")               # Device name
-device_description = os.getenv("DESCRIPTION")  # Device description
+def getMACAdress():
 
-# Initialize result variables
-device_id = None                      # Will store the device ID assigned by the server
-# Will store the heartbeat duration assigned by the server
-device_heartbeat_duration = 0
+    global redis_host, redis_port, redis_db
+    global MAC_address
 
-# Control variables
-# Flag to indicate when to stop consuming messages
-stop_condition_met = False
-connection = None                     # RabbitMQ connection object
+    redis_client = redis.Redis(host=redis_host, port=redis_port, db=redis_db)
+    try:
+        MAC_address = str(redis_client.get(
+            str(REDIS_KEY_MAC_ADDRESS)).decode('utf-8'))
+    except Exception as e:
+        print(f"[ERR]: Cannot get MAC Address from redis database: {e}")
+
+    if MAC_address is None or MAC_address == '':
+        MAC_address = os.getenv('MAC_ADDRESS')
+
+    if MAC_address is None or MAC_address == '':
+        # Generate the MAC address from the UUID if not provided
+        MAC_address = hex(uuid.getnode()).replace('0x', '').upper()
+        MAC_address = ':'.join(MAC_address[i:i+2] for i in range(0, 12, 2))
+
+    print(f"[INFO]: Device MAC: {MAC_address}")
+
+
+getMACAdress()
 
 
 def createChannels():
@@ -100,7 +115,7 @@ def createChannels():
     if connection is None:
         # If connection failed, print error and return None
         print(
-            f"[ERROR] Failed to create connection to RabbitMQ message broker server\n", file=sys.stderr)
+            f"[ERR] Failed to create connection to RabbitMQ message broker server\n", file=sys.stderr)
         return None, None
 
     # Create a channel for the device registry queue
@@ -167,7 +182,7 @@ def callback(ch, method, properties, body):
         data = json.loads(msg)
         this_mac_addr = data.get('mac_address')
         if this_mac_addr:
-            print("Current MAC:", this_mac_addr)
+            # print("Current MAC:", this_mac_addr)
             return str(this_mac_addr)
         return None
 
@@ -204,31 +219,33 @@ def callback(ch, method, properties, body):
         return 10
 
     # Check if the MAC address in the message matches this device's MAC address
-    if getMACAddress(decoded_message) == MAC_address:
-        print("Message with matching MAC address received, stopping consumer...")
-        print(f"{decoded_message}")
-        stop_condition_met = True  # Set the flag to stop consuming messages
-
-        device_id = getDeviceID(decoded_message)
-        device_heartbeat_duration = getHeartbeatDuration(decoded_message)
-
-        # Update the .env file with the received device ID and heartbeat duration
-        updateENV(key=DOTENV_KEY_DEVICE_ID, value=device_id)
-        updateENV(key=DOTENV_KEY_HEARTBEAT_DURATION,
-                  value=str(device_heartbeat_duration))
-
-        # Set the mac, id, heartbeat duration in redis DB
-        redis_client = redis.Redis(
-            host=redis_host, port=redis_port, db=redis_db)
-        redis_client.set(name=REDIS_KEY_MAC_ADDRESS, value=MAC_address)
-        redis_client.set(name=REDIS_KEY_DEVICE_ID, value=device_id)
-        redis_client.set(name=REDIS_KEY_HEARTBEAT_DURATION,
-                         value=device_heartbeat_duration)
-
-        # Acknowledge the message and stop consuming
-        ch.basic_ack(delivery_tag=method.delivery_tag)
-        ch.stop_consuming()
+    if getMACAddress(decoded_message) != MAC_address:
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
         return
+
+    print(
+        f"[INFO]: Message with matching MAC address received, stopping consumer...\n{decoded_message}")
+    stop_condition_met = True  # Set the flag to stop consuming messages
+
+    device_id = getDeviceID(decoded_message)
+    device_heartbeat_duration = getHeartbeatDuration(decoded_message)
+
+    # Update the .env file with the received device ID and heartbeat duration
+    updateENV(key=DOTENV_KEY_DEVICE_ID, value=device_id)
+    updateENV(key=DOTENV_KEY_HEARTBEAT_DURATION,
+              value=str(device_heartbeat_duration))
+
+    # Set the mac, id, heartbeat duration in redis DB
+    redis_client = redis.Redis(
+        host=redis_host, port=redis_port, db=redis_db)
+    redis_client.set(name=REDIS_KEY_MAC_ADDRESS, value=MAC_address)
+    redis_client.set(name=REDIS_KEY_DEVICE_ID, value=device_id)
+    redis_client.set(name=REDIS_KEY_HEARTBEAT_DURATION,
+                     value=device_heartbeat_duration)
+
+    # Acknowledge the message and stop consuming
+    ch.basic_ack(delivery_tag=method.delivery_tag)
+    ch.stop_consuming()
 
 
 if __name__ == '__main__':
@@ -249,7 +266,7 @@ if __name__ == '__main__':
         while True:
             # Check if the retry timeout has been reached
             if time.time() - start_time >= retry_timeout:
-                print("Timeout reached, stopping consumer...")
+                print(f"[INFO]: Timeout reached, stopping consumer...")
                 accepted_devices_channel.stop_consuming()
                 break
 
@@ -271,7 +288,7 @@ if __name__ == '__main__':
     while True:
         # Publish the device registration message to the device registry queue
         msg_body = generateMessage()
-        print(f"Pub this msg: {msg_body}")
+        print(f"[INFO]: Registry message published: {msg_body}")
         device_registry_channel.basic_publish(
             exchange='',
             routing_key=device_registry_queue,
@@ -285,7 +302,7 @@ if __name__ == '__main__':
         device_registry_channel.close()
         accepted_devices_channel.close()
 
-        print("RETRY after 1 second...")
+        print("[INFO]: RETRY after 1 second...")
 
         # Recreate the channels for the next attempt
         device_registry_channel, accepted_devices_channel = createChannels()
