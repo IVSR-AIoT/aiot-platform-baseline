@@ -4,14 +4,14 @@
 
 ## Setup
 
-1. First, SSH into the Orange Pi Zero 3, ensuring you are on the same network:
+1. **First, SSH into the Orange Pi Zero 3, ensuring you are on the same network:**
 
     ```bash
     ssh orangepi@192.168.1.201
     sudo mount 192.168.1.202:/home/ivsr/aiot-platform-baseline/aiml-inference/saved_images /mnt/jetson_dir
     ```
 
-2. Run the following Docker containers:
+2. **Run the following Docker containers:**
 
     ```bash
     docker run -d -v /mnt/jetson_dir:/mnt/images model_messages_generator
@@ -20,7 +20,7 @@
     docker run -d workflow_management
     ```
 
-3. Check the status of these services. If any of them are not working, restart the respective service:
+3. **Check the status of these services. If any of them are not working, restart the respective service:**
 
     ```bash
     sudo systemctl status scd41.service 
@@ -79,4 +79,19 @@
 
   ```bash
   docker rmi $(docker images -q) --force --no-prune
+  ```
+
+3. **Build all docker images after a pull:**
+
+  ```bash
+  cd /home/orangepi/aiot-platform-baseline/microservices/device_management && \
+  docker build -t device_management . && \
+  cd /home/orangepi/aiot-platform-baseline/microservices/sensor_messages_generator && \
+  docker build -t sensor_messages_generator . && \
+  cd /home/orangepi/aiot-platform-baseline/microservices/model_messages_generator && \
+  docker build -t model_messages_generator . && \
+  cd /home/orangepi/aiot-platform-baseline/microservices/messages_delivery && \
+  docker build -t messages_delivery . && \
+  cd /home/orangepi/aiot-platform-baseline/microservices/workflow_management && \
+  docker build -t workflow_management .
   ```

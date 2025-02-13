@@ -371,7 +371,6 @@ class LocalRabbitMQClient:
 
                 if message_type is not None:
                     getDataRedis()
-                    print(f"[INFO]: Arrived message: {message_type}")
 
                 if message_type == "object":
                     if not self._timer.hasElapsed():

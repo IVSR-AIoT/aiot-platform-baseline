@@ -419,8 +419,9 @@ class SensorDataMessage:
         if not self.isFull():
             return False, ''
 
-        print(
-            f"[INFO]: Processing these sensor data: {self._sensors_data_dict}")
+        print(f"[INFO]: Sensor count is matched, start processing these sensor data:")
+        for key, sensor in self._sensors_data_dict.items():
+            print(f"{sensor.__str__()}")
 
         message_dict = copy.deepcopy(SENSOR_DATA_MESSAGE_TEMPLATE_DICT)
 
